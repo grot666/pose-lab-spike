@@ -1,2 +1,3 @@
 *.task binary
 *.wasm binary
+*.wav binary

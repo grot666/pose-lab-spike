@@ -3,7 +3,7 @@
 // message if the local model / wasm assets are missing.
 import fs from 'node:fs';
 import path from 'node:path';
-import { MODELS, MODELS_DIR, WASM_DIR } from './assets.mjs';
+import { MODELS, MODELS_DIR, PUBLIC_DIR, WASM_DIR } from './assets.mjs';
 
 const missing = [];
 for (const m of MODELS) {
@@ -19,3 +19,8 @@ if (missing.length) {
   process.exit(1);
 }
 console.log('[check-assets] local MediaPipe models + wasm present');
+
+// Audio is optional (the app runs silent without it) -> warn only.
+const AUDIO = ['lab_drone_loop.wav', 'cue_command.wav', 'cue_success.wav', 'cue_fail.wav', 'cue_track_lost.wav'];
+const missingAudio = AUDIO.filter((f) => !fs.existsSync(path.join(PUBLIC_DIR, 'audio', f)));
+if (missingAudio.length) console.warn(`[check-assets] missing public/audio/{${missingAudio.join(',')}} - run: npm run gen-audio`);

@@ -109,6 +109,23 @@ body.safeword .brand .dot {
   border-color: rgba(255, 59, 107, 0.5);
 }
 
+.audio-btn {
+  font: inherit;
+  letter-spacing: inherit;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.audio-btn[data-muted='true'] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+body.safeword .audio-btn {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* ---------------------------------------------------------------- stage: left camera / right lab; stacked on mobile */
 .stage {
   flex: 1;

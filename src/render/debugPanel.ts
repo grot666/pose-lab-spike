@@ -24,6 +24,8 @@ export interface DebugSettings {
   holdMinS: number;
   holdMaxS: number;
   sequence: SequenceMode;
+  audioMuted: boolean;
+  audioVolume: number;
 }
 
 export interface DebugCallbacks {
@@ -47,6 +49,7 @@ export interface DebugData {
   jitterRaw: number;
   jitterFiltered: number;
   target: PoseEvaluation | null;
+  audioState: string;
 }
 
 const fmt = (v: number, d = 0) => (Number.isFinite(v) ? v.toFixed(d) : '—');
@@ -90,7 +93,11 @@ export class DebugPanel {
     return el('label', { class: 'slider' }, el('span', {}, label), input, val);
   }
 
-  private syncInputs(): void {
+  /** Push external settings changes (e.g. the top-bar mute toggle) into the inputs. */
+  syncInputs(): void {
+    this.root.querySelectorAll<HTMLInputElement>('input[type=checkbox][data-key]').forEach((i) => {
+      i.checked = !!this.settings[i.dataset.key as keyof DebugSettings];
+    });
     this.root.querySelectorAll<HTMLInputElement>('input[type=range]').forEach((i) => {
       const k = i.dataset.key as keyof DebugSettings;
       if (String(this.settings[k]) !== i.value) {
@@ -153,6 +160,14 @@ export class DebugPanel {
       this.cb.onSettings({ ...this.settings });
     });
 
+    const mute = el('input', { type: 'checkbox' });
+    mute.dataset.key = 'audioMuted';
+    mute.checked = this.settings.audioMuted;
+    mute.addEventListener('change', () => {
+      this.settings.audioMuted = mute.checked;
+      this.cb.onSettings({ ...this.settings });
+    });
+
     this.visBars = JOINT_NAMES.map((n, i) => el('i', { title: `${i} ${n}` }));
     const angles = el('div', { class: 'grid2', id: 'dbg-angles' });
     this.fields.angles = angles;
@@ -203,6 +218,10 @@ export class DebugPanel {
         this.slider('holdMinS', this.t('hold_min'), 1, 30, 1),
         this.slider('holdMaxS', this.t('hold_max'), 1, 30, 1),
         el('div', { class: 'kv' }, el('span', {}, this.t('sequence')), seq),
+        el('h4', {}, this.t('audio')),
+        el('label', { class: 'check' }, mute, el('span', {}, this.t('audio_mute'))),
+        this.slider('audioVolume', this.t('audio_volume'), 0, 1, 0.05),
+        this.field('audioState', this.t('audio_state')),
       ),
     );
     this.root.replaceChildren(summary, this.body);
@@ -234,6 +253,7 @@ export class DebugPanel {
     f.wristHidden.textContent = s.frames ? `${fmt((s.wristHiddenFrames / s.frames) * 100)}%` : '—';
     f.jitterRaw.textContent = `${fmt(d.jitterRaw, 1)} mm`;
     f.jitterFilt.textContent = `${fmt(d.jitterFiltered, 1)} mm`;
+    f.audioState.textContent = d.audioState;
 
     this.visBars.forEach((b, i) => {
       const v = d.visibility?.[i] ?? 0;

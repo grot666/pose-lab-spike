@@ -4,7 +4,7 @@ A **local-only** spike that checks whether **MediaPipe Pose Landmarker** can do 
 
 The theme is an adult, consensual BDSM role-play set in a sci-fi AI lab. The "Dom" is a floating white sphere AI with no humanoid form and no speech. It talks through light (colour, pulse, orbit rings, scan beam, a hold-progress halo) and on-screen text in a cold, condescending lab voice.
 
-* No speech, no backend, no cloud deploy. You run it locally.
+* No speech (no TTS), no backend, no cloud deploy. You run it locally. There is a quiet sci-fi lab hum plus a few UI beeps, all procedurally generated local files (see "Audio").
 * **No network at runtime.** Models (`.task`) and the WASM runtime are served from `public/`. A Content-Security-Policy blocks every off-origin request (see "Findings" below).
 * **No image or video upload or saving.** Frames go straight from the `<video>` element to the in-memory detector.
 * There's a **safeword** button in the bottom-right corner at all times. It hard-stops the loop and the camera.
@@ -25,12 +25,13 @@ Requires Node 20.19+ (or 22.12+). `npm run dev` / `npm run build` first run `scr
 | Script | What it does |
 |---|---|
 | `npm run dev` | Vite dev server on **HTTPS** (`@vitejs/plugin-basic-ssl`) at **host 0.0.0.0:5173**. YAML hot reload. |
-| `npm test` | Vitest: pose rules, One Euro filter, debounce, safeword, tracking, session, i18n parity |
+| `npm test` | Vitest: pose rules, One Euro filter, debounce, safeword, tracking, session, i18n parity, audio bank |
 | `npm run build` | `tsc --noEmit` + production build into `dist/` (models and WASM included) |
 | `npm run preview` | Serves `dist/` over HTTPS on 0.0.0.0:4173 |
 | `npm run fetch-models` | One-time asset setup (see below). Add `-- --force` to re-download. |
+| `npm run gen-audio` | Re-synthesise `public/audio/*.wav` (deterministic, no deps, no network) |
 
-URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`.
+URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted).
 
 ### Model and WASM assets (offline)
 
@@ -116,19 +117,24 @@ src/
     mediapipePose.ts     the ONLY MediaPipe import; converts to unified PoseFrame
     camera.ts            getUserMedia (front/back, 1280x720 ideal)
     wakeLock.ts          Screen Wake Lock with re-acquire on tab return
+  audio/
+    audioBank.ts         AudioBank: register cues, play / loop / stop, mute, volume, cooldowns (pure, tested)
+    webAudioBackend.ts   Web Audio output (master + ambience/sfx buses, gapless loops)
+    labCues.ts           cue manifest: the ONLY place with audio file paths
+    audioPrefs.ts        mute / volume persistence (localStorage)
   render/
     labScene.ts          three.js scene, EffectComposer + UnrealBloomPass + OutputPass
     sphereAI.ts          the sphere "Dom": moods, rings, halo progress shader, scan beam
     capsuleFigure.ts     33-joint translucent capsule figure from world landmarks
     skeleton2d.ts        visibility-coloured 2D overlay
-    hud.ts, debugPanel.ts, dom.ts, colors.ts
+    hud.ts, debugPanel.ts, audioToggle.ts, dom.ts, colors.ts
   content/
     poses.yaml           7 poses: id + rules only
     i18n/zh-CN.yaml      all copy (Chinese)
     i18n/en.yaml         all copy (English) – identical keys (enforced by a test)
 tests/                   vitest suites + synthetic 33-joint skeleton fixtures
-scripts/                 fetch-models.mjs, check-assets.mjs, assets.mjs
-public/                  models/*.task, mediapipe/wasm/*, favicon
+scripts/                 fetch-models.mjs, check-assets.mjs, assets.mjs, gen-audio.mjs
+public/                  models/*.task, mediapipe/wasm/*, audio/*.wav, favicon
 ```
 
 **Unified landmarks** (`core/landmarks.ts`): world coordinates in metres with the origin at the hip centre. **+x is image-right, +y is up, +z points toward the camera.** This matches three.js. The adapter flips MediaPipe's y-down and z-away axes. Nothing outside `adapters/` imports MediaPipe types.
@@ -174,6 +180,14 @@ Then:
 Shipped poses: `attention`, `at_your_service` (hands clasped behind the back), `inspection` (feet wide, hands behind the head, elbows out), `wait` (hands clasped low in front, head bowed), `kneel` (high kneel), `nadu` (sitting on heels, knees wide, palms on thighs, head up), `collar_me` (kneeling, chin raised, hands at the nape).
 
 ---
+
+## Audio
+
+* **Ambience:** a low, seamless 8 s drone loop (55/110 Hz partials with slow beating, faint shimmer and a filtered-noise "air handler" bed). It fades in when you click **开始 / Start**. The click also unlocks Web Audio for autoplay policies. It fades out when a round ends (report screen), comes back on **Next round**, and stops for good on the **safeword**. While the tab is hidden, output is suspended.
+* **UI cues** (short, quiet, with per-cue cooldowns so they never spam): command issued, success, fail, and track lost (at most once every 5 s).
+* **Toggle:** use the **音效 开/关 · SOUND ON/OFF** button in the top bar, or press **M**. The debug panel (`?debug=1`) also has **Audio → Mute / volume** and shows the AudioContext state. Mute and volume persist in `localStorage` (`pose-lab.audio`).
+* **Assets:** `public/audio/*.wav` (16-bit mono, 22.05 kHz, ~465 KB total) are synthesised by `scripts/gen-audio.mjs`. The output is deterministic, needs no third-party sounds and no network, and is committed. They're served same-origin, so the CSP is unchanged.
+* **Adding a cue:** generate or drop a file into `public/audio/`, add `{ id, src, bus, volume, loop?, cooldownMs? }` to `src/audio/labCues.ts`, then call `audio.play('<id>')` / `audio.loop('<id>')` from the orchestrator. Render widgets never see file paths. `AudioBank.register()` / `replaceAll()` also work at runtime.
 
 ## i18n
 

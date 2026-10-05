@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "fetch-models": "node scripts/fetch-models.mjs",
+    "gen-audio": "node scripts/gen-audio.mjs",
     "check-assets": "node scripts/check-assets.mjs",
     "predev": "node scripts/check-assets.mjs",
     "prebuild": "node scripts/check-assets.mjs"

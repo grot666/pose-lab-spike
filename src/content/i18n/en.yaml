@@ -184,6 +184,11 @@ safeword:
   end_care: "Drink some water, stretch, and check in with your partner."
   end_reload: "Reload the page if you want to start again."
 
+audio:
+  on: "SOUND ON"
+  off: "SOUND OFF"
+  toggle_aria: "Toggle lab audio (M)"
+
 track:
   idle: "IDLE"
   tracking: "TRACKING"
@@ -229,3 +234,7 @@ debug:
   no_target: "no target"
   head_pitch: "head pitch"
   torso_tilt: "torso tilt"
+  audio: "Audio"
+  audio_mute: "Mute"
+  audio_volume: "volume"
+  audio_state: "context"

@@ -184,6 +184,11 @@ safeword:
   end_care: "喝点水，伸展一下身体，和你的伙伴确认彼此的状态。"
   end_reload: "如需重新开始，请刷新页面。"
 
+audio:
+  on: "音效 开"
+  off: "音效 关"
+  toggle_aria: "开关实验室音效（M 键）"
+
 track:
   idle: "空闲"
   tracking: "跟踪中"
@@ -229,3 +234,7 @@ debug:
   no_target: "无目标"
   head_pitch: "头部俯仰"
   torso_tilt: "躯干倾斜"
+  audio: "音频"
+  audio_mute: "静音"
+  audio_volume: "音量"
+  audio_state: "状态"

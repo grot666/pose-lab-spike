@@ -1,11 +1,15 @@
 /**
  * Orchestrator: wires adapters (camera, MediaPipe, wake lock) -> core
  * (tracking, smoothing, rules, debounce, session, metrics, safeword) -> render
- * (2D skeleton, three.js lab, HUD, debug panel).
+ * (2D skeleton, three.js lab, HUD, debug panel) + audio bank (ambience + UI cues).
  */
 import { CameraAdapter } from './adapters/camera';
 import { MediaPipePoseDetector, type PoseDetector } from './adapters/mediapipePose';
 import { WakeLockAdapter } from './adapters/wakeLock';
+import { AudioBank, SilentAudioBackend } from './audio/audioBank';
+import { loadAudioPrefs, safeLocalStorage, saveAudioPrefs } from './audio/audioPrefs';
+import { LAB_CUE, LAB_CUES } from './audio/labCues';
+import { WebAudioBackend } from './audio/webAudioBackend';
 import { config, type FacingMode, type Lang, type ModelTier } from './config';
 import { computeAllAngles, headPitch, torsoTilt } from './core/geometry';
 import type { I18n } from './core/i18n';
@@ -18,6 +22,7 @@ import { ButtonSafewordSource, SafewordController } from './core/safeword';
 import { PoseSession, type SessionEvent, type SessionSnapshot } from './core/session';
 import { TrackingMonitor, type TrackSnapshot } from './core/tracking';
 import { DebugPanel, type DebugSettings } from './render/debugPanel';
+import { AudioToggle } from './render/audioToggle';
 import { $ } from './render/dom';
 import { Hud } from './render/hud';
 import { LabScene } from './render/labScene';
@@ -25,6 +30,12 @@ import { Skeleton2D } from './render/skeleton2d';
 import type { Mood } from './render/sphereAI';
 
 const TIERS: ModelTier[] = ['lite', 'full', 'heavy'];
+
+/** Cue src (relative to BASE_URL, served from public/) -> same-origin URL. */
+function assetUrl(path: string): string {
+  const b = import.meta.env.BASE_URL || '/';
+  return new URL(b.replace(/\/?$/, '/') + path.replace(/^\//, ''), window.location.href).href;
+}
 const JITTER_JOINTS = [J.nose, ...CORE_JOINTS, J.left_elbow, J.right_elbow, J.left_knee, J.right_knee];
 
 export class App {
@@ -47,6 +58,8 @@ export class App {
   private readonly debug: DebugPanel;
   private readonly lab: LabScene;
   private readonly skeleton: Skeleton2D;
+  private readonly audio: AudioBank;
+  private readonly audioToggle: AudioToggle;
 
   private running = false;
   private busy: string | null = null;
@@ -86,6 +99,16 @@ export class App {
     this.lab = new LabScene($('#three') as HTMLCanvasElement);
     this.skeleton = new Skeleton2D($('#overlay') as HTMLCanvasElement, this.video);
 
+    const store = safeLocalStorage();
+    const prefs = loadAudioPrefs(store, config.audio.storageKey, { muted: config.audio.defaultMuted, volume: config.audio.defaultVolume });
+    if (q.get('mute') === '1') prefs.muted = true;
+    this.audio = new AudioBank({
+      backend: config.audio.enabled ? new WebAudioBackend(assetUrl, config.audio.busGain) : new SilentAudioBackend(),
+      cues: LAB_CUES,
+      volume: prefs.volume,
+      muted: prefs.muted,
+    });
+
     const settings: DebugSettings = {
       tier,
       facing: config.camera.facingMode,
@@ -95,6 +118,8 @@ export class App {
       holdMinS: config.session.holdMinMs / 1000,
       holdMaxS: config.session.holdMaxMs / 1000,
       sequence,
+      audioMuted: prefs.muted,
+      audioVolume: prefs.volume,
     };
     const dbgRoot = $('#debug') as HTMLDetailsElement;
     dbgRoot.open = config.ui.debugOpen || q.get('debug') === '1';
@@ -108,6 +133,15 @@ export class App {
     this.safeword = new SafewordController([new ButtonSafewordSource($('#safeword-btn'))]);
     this.safeword.onTrigger(() => this.onSafeword());
     this.safeword.arm();
+
+    this.audioToggle = new AudioToggle($('#audio-btn') as HTMLButtonElement, i18n, () => this.toggleMute());
+    this.audioToggle.set(prefs.muted);
+    window.addEventListener('keydown', (e) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (e.key === 'm' || e.key === 'M') this.toggleMute();
+    });
+    document.addEventListener('visibilitychange', () => this.audio.setSuspended(document.hidden));
 
     this.i18n.globals.subjectId = this.subjectId();
     this.hud.applyStatic();
@@ -159,6 +193,7 @@ export class App {
     this.hud.applyStatic();
     this.hud.setSubject();
     this.debug.build();
+    this.audioToggle.render();
     this.renderLangLinks();
     if (this.hud.statusKey) this.hud.say(this.hud.statusKey, this.poseParams());
   }
@@ -166,6 +201,9 @@ export class App {
   // ---------------------------------------------------------------- lifecycle
   private async start(): Promise<void> {
     if (this.safeword.triggered || this.running) return;
+    // Inside the click gesture, before any await: unlock Web Audio (autoplay policy) and start the hum.
+    this.audio.unlock();
+    void this.audio.loop(LAB_CUE.ambience, config.audio.ambienceFadeInMs);
     try {
       if (!window.isSecureContext) throw Object.assign(new Error('insecure'), { code: 'insecure' });
       this.hud.setStartBusy(this.i18n.t('app.requesting_camera'));
@@ -198,6 +236,7 @@ export class App {
       this.scheduleNext();
     } catch (err) {
       const code = (err as { code?: string }).code;
+      this.audio.stop(LAB_CUE.ambience, config.audio.ambienceFadeOutMs);
       this.camera.stop();
       this.hud.setStartBusy(null);
       this.hud.showStartError(
@@ -212,6 +251,7 @@ export class App {
 
   private onSafeword(): void {
     this.running = false;
+    this.audio.shutdown(config.audio.safewordFadeMs);
     const v = this.video as HTMLVideoElement & { cancelVideoFrameCallback?: (h: number) => void };
     v.cancelVideoFrameCallback?.(this.vfcHandle);
     cancelAnimationFrame(this.rafHandle);
@@ -269,7 +309,23 @@ export class App {
     }
   }
 
+  // ---------------------------------------------------------------- audio
+  private toggleMute(): void {
+    if (this.audio.disposed) return;
+    this.debug.settings.audioMuted = !this.audio.muted;
+    this.debug.syncInputs();
+    this.applyAudio(this.debug.settings);
+  }
+
+  private applyAudio(s: Pick<DebugSettings, 'audioMuted' | 'audioVolume'>): void {
+    if (s.audioMuted !== this.audio.muted) this.audio.setMuted(s.audioMuted);
+    if (s.audioVolume !== this.audio.volume) this.audio.setVolume(s.audioVolume);
+    this.audioToggle.set(this.audio.muted);
+    saveAudioPrefs(safeLocalStorage(), config.audio.storageKey, { muted: this.audio.muted, volume: this.audio.volume });
+  }
+
   private applySettings(s: DebugSettings): void {
+    this.applyAudio(s);
     this.smoother.setParams({ minCutoff: s.minCutoff, beta: s.beta, dCutoff: s.dCutoff });
     if (this.smoother.enabled !== s.smoothing) this.smoother.reset();
     this.smoother.enabled = s.smoothing;
@@ -424,6 +480,9 @@ export class App {
         if (e.phase === 'entering' && this.hud.statusKey !== 'status.leave') this.say('status.entering');
         if (e.phase === 'searching') this.say('status.searching');
         break;
+      case 'command':
+        void this.audio.play(LAB_CUE.command);
+        break;
       case 'enter':
         this.say('status.entered');
         break;
@@ -432,10 +491,12 @@ export class App {
         break;
       case 'result':
         this.resultMood = e.outcome === 'success' ? 'success' : 'fail';
+        void this.audio.play(e.outcome === 'success' ? LAB_CUE.success : LAB_CUE.fail);
         this.say(e.outcome === 'success' ? 'status.success' : 'status.fail_timeout');
         this.hud.setHint(null);
         break;
       case 'track_lost':
+        void this.audio.play(LAB_CUE.trackLost);
         this.say('status.track_lost');
         break;
       case 'track_regained':
@@ -463,11 +524,17 @@ export class App {
         });
         // numbers-only metrics JSON
         console.info(JSON.stringify(report));
+        this.audio.stop(LAB_CUE.ambience, config.audio.ambienceFadeOutMs);
         this.hud.setHint(null);
         this.hud.showReport(
           report,
           e.summary.attempts.reduce<string[]>((ids, a) => ((ids[a.poseIndex] = a.poseId), ids), []),
-          () => this.session.nextRound(),
+          () => {
+            // the "next round" click is a fresh gesture: hum back on
+            this.audio.unlock();
+            void this.audio.loop(LAB_CUE.ambience, config.audio.ambienceFadeInMs);
+            this.session.nextRound();
+          },
         );
         break;
       }
@@ -501,6 +568,7 @@ export class App {
       jitterRaw: this.jitterRaw.value,
       jitterFiltered: this.jitterFilt.value,
       target,
+      audioState: `${this.audio.state}${this.audio.isLooping(LAB_CUE.ambience) ? ' · ambience' : ''}`,
     });
   }
 }

@@ -58,6 +58,21 @@ export interface AppConfig {
     /** Show debug panel expanded on load. Also ?debug=1. */
     debugOpen: boolean;
   };
+  audio: {
+    /** Master switch. Cue files/paths live in src/audio/labCues.ts. */
+    enabled: boolean;
+    /** Defaults before the user changes anything (persisted to localStorage afterwards). Also ?mute=1. */
+    defaultVolume: number;
+    defaultMuted: boolean;
+    storageKey: string;
+    /** Bus gains (multiplied by per-cue volume and the master volume). */
+    busGain: { ambience: number; sfx: number };
+    ambienceFadeInMs: number;
+    /** Fade when a round ends (report screen). */
+    ambienceFadeOutMs: number;
+    /** Fade on safeword - short, but avoids a click. */
+    safewordFadeMs: number;
+  };
 }
 
 export const config: AppConfig = {
@@ -96,4 +111,14 @@ export const config: AppConfig = {
     resultShowMs: 2_600,
   },
   ui: { debugHz: 6, debugOpen: false },
+  audio: {
+    enabled: true,
+    defaultVolume: 0.6,
+    defaultMuted: false,
+    storageKey: 'pose-lab.audio',
+    busGain: { ambience: 1, sfx: 0.8 },
+    ambienceFadeInMs: 2500,
+    ambienceFadeOutMs: 1500,
+    safewordFadeMs: 200,
+  },
 };
