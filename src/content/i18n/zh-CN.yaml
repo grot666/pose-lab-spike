@@ -1,0 +1,231 @@
+# 简体中文文案。所有用户可见文字只在此文件与 en.yaml 中配置（键必须一致）。
+# 占位符：{subjectId} {pose} {seconds} {elapsed} {target} {round} {step} {total} {tier} {n} …
+# 列表 = 每次随机取一条。`npm run dev` 下修改即热更新。
+
+meta:
+  lang_name: "简体中文"
+
+ai:
+  name: "观测者"
+
+app:
+  title: "POSE LAB 姿态实验室"
+  subtitle: "行为服从性观测单元"
+  consent_note: "成人、知情同意的角色扮演。所有视觉计算仅在本浏览器本地运行，不保存、不上传任何图像或视频。"
+  start: "开始观测"
+  loading_model: "正在载入姿态模型（{tier}）…"
+  requesting_camera: "正在请求光学传感器…"
+  camera_denied: "摄像头不可用或权限被拒绝。实验室看不见的东西，无法观测。"
+  model_failed: "姿态模型载入失败：{error}"
+  insecure_context: "摄像头需要 HTTPS（或 localhost）。请打开 npm run dev 输出的 https:// 地址。"
+  safeword: "安全词"
+  safeword_aria: "安全词：立即停止一切"
+  next_round: "下一轮"
+  wake_lock_failed: "屏幕可能会熄灭：无法保持常亮。"
+
+subject:
+  id_format: "S-{n}"
+  label: "样本"
+
+hud:
+  subject: "样本 {subjectId}"
+  round: "第 {round} 轮 · {step}/{total}"
+  enter_countdown: "{seconds} 秒内就位"
+  hold: "保持 {elapsed} / {target} 秒"
+  paused: "计时已暂停"
+  phase:
+    idle: "待机"
+    searching: "捕获中"
+    command: "指令"
+    entering: "等待服从"
+    holding: "保持中"
+    result: "记录中"
+    report: "报告"
+    stopped: "已停止"
+
+status:
+  idle:
+    - "样本舱待机。准备好被测量时，按下开始。"
+  searching:
+    - "面向传感器，{subjectId}。全身入镜。实验室在等你。"
+    - "后退。再后退。观测者需要看见你的全部。"
+    - "未检测到样本。到传感器前报到。"
+  person_found:
+    - "样本 {subjectId} 已捕获。尽量别比上一个更让人失望。"
+    - "找到你了。样本 {subjectId}，已登记。让我们看看你值几分。"
+  entering:
+    - "{pose}。现在。"
+    - "{pose}。计时已经开始了，{subjectId}。"
+    - "我说了，{pose}。做标准。"
+  entered:
+    - "勉强合格。保持住。"
+    - "姿态已登记。不许动。"
+    - "终于。就这样，一动别动。"
+  holding:
+    - "保持。每一次颤抖都在被记录。"
+    - "别动。观测者正在测量你。"
+    - "待着。数据不会自己采集。"
+  leave:
+    - "你动了。保持计时清零。重来。"
+    - "姿态破坏。太散漫了，{subjectId}。从头开始。"
+    - "我允许你动了吗？回到{pose}。"
+  success:
+    - "可以接受。记录为：服从。"
+    - "保持完成。观测者……略感满意。"
+    - "已记录。别因此得意。"
+  fail_timeout:
+    - "太慢了。记录为：不服从。"
+    - "时间到。你的档案又厚了一页，{subjectId}。"
+    - "失败已记录。意料之中。"
+  track_lost:
+    - "样本离开观测区。回到传感器前。计时已暂停。"
+    - "你去哪儿了，{subjectId}？回到画面里。计时在等你。"
+  track_regained:
+    - "重新捕获。继续。"
+    - "回来了。继续。"
+  wrists_hidden:
+    - "把手放在实验室看得见的地方。"
+  lower_body_hidden:
+    - "腿出画了。后退。"
+
+poses:
+  attention:
+    name: "立正"
+    command: "立正"
+    instruction: "站直。双脚并拢，双臂伸直贴于身侧，下巴放平。"
+  at_your_service:
+    name: "听候差遣"
+    command: "听候差遣"
+    instruction: "挺身站立，双脚与肩同宽，双手在背后交握。"
+  inspection:
+    name: "受检"
+    command: "受检"
+    instruction: "双脚大幅分开。十指交叉抱于脑后，手肘向外打开。接受检查。"
+  wait:
+    name: "等候"
+    command: "等候"
+    instruction: "静立，双手在身前低处交握，低头。"
+  kneel:
+    name: "跪立"
+    command: "跪下"
+    instruction: "高跪：双膝着地，大腿与背部成一条直线。"
+  nadu:
+    name: "纳杜跪姿"
+    command: "纳杜"
+    instruction: "跪下并坐在脚跟上。双膝大开，掌心放在大腿上，背挺直，抬头。"
+  collar_me:
+    name: "为我戴上项圈"
+    command: "项圈"
+    instruction: "跪下。抬起下巴献出脖颈，双手在颈后托起头发。"
+
+hints:
+  torso_upright: "背挺直。"
+  legs_straight: "腿伸直。膝盖锁住。"
+  hips_straight: "髋部前送。不许塌腰。"
+  arms_straight: "手臂伸直。"
+  arms_down: "手臂放下，贴在身侧。"
+  hands_at_sides: "手放身侧，不是身前。"
+  feet_together: "双脚并拢。"
+  head_level: "下巴放平。目视前方。"
+  feet_shoulder_width: "双脚与肩同宽。"
+  elbows_close: "手肘收回。"
+  hands_behind_back: "手放到背后。"
+  feet_wide: "再宽。双脚大幅分开。"
+  hands_high: "手举到脑后。"
+  elbows_bent: "弯曲手肘。"
+  elbows_wide: "手肘向外。打开。"
+  hands_behind_head: "手放在脑后。"
+  hands_together: "双手合拢。"
+  hands_low: "手放低，在胯前。"
+  hands_in_front: "手放在身前。"
+  head_bowed: "低头。"
+  knees_bent_90: "膝盖着地。大腿立直。"
+  knees_together: "膝盖靠拢一些。"
+  sitting_on_heels: "坐到脚跟上。"
+  hips_folded: "臀部坐下，压在脚跟上。"
+  knees_wide: "膝盖再分开。"
+  hands_on_thighs: "掌心放在大腿上。"
+  hands_forward: "手往前放，放在大腿上。"
+  hands_apart: "一只手放一条腿。"
+  head_up: "抬头。"
+  kneeling: "跪下。"
+  chin_up: "抬起下巴。献出脖颈。"
+  hands_at_neck: "手抬到颈后。"
+  hands_near_head: "手再靠近头部。"
+
+report:
+  title: "观测报告 · 第 {round} 轮 · {subjectId}"
+  success_rate: "服从率"
+  commands: "指令数"
+  success: "服从"
+  fail: "不服从"
+  leaves: "姿态破坏"
+  track_losses: "离开观测区"
+  mean_enter: "平均就位用时"
+  mean_hold: "平均保持比例"
+  perf: "FPS {fps} · 推理 {infer} ms（p95 {p95}）· 抖动 {jraw}→{jfilt} mm"
+  row: "{pose} — {outcome} · 就位 {enter}s · 保持 {hold}/{target}s · 破坏 {leaves}"
+  outcome_success: "服从"
+  outcome_fail: "失败"
+  not_entered: "—"
+  console_hint: "完整数值指标 JSON 已输出到浏览器控制台。"
+  verdict_good:
+    - "出乎意料地听话，{subjectId}。别指望表扬。"
+  verdict_mid:
+    - "平庸。观测者见过更好的样本。再来。"
+  verdict_bad:
+    - "可悲的数据，{subjectId}。你的档案将被复核。重复本流程。"
+
+safeword:
+  end_title: "已收到安全词。"
+  end_body:
+    - "一切都已停止。你做得很好。深呼吸——你是安全的。"
+  end_detail: "摄像头已关闭，分析已停止。从未保存或上传任何图像或视频。"
+  end_care: "喝点水，伸展一下身体，和你的伙伴确认彼此的状态。"
+  end_reload: "如需重新开始，请刷新页面。"
+
+track:
+  idle: "空闲"
+  tracking: "跟踪中"
+  partial: "部分可见"
+  lost: "丢失"
+
+debug:
+  title: "调试"
+  fps: "FPS"
+  inference: "推理"
+  model_tier: "模型"
+  delegate: "后端"
+  camera: "摄像头"
+  front: "前置"
+  back: "后置"
+  switching: "切换中…"
+  state: "跟踪"
+  visibility: "可见度（33 关节）"
+  track_stats: "跟踪统计"
+  tracked_ratio: "跟踪率"
+  lost_events: "丢失次数"
+  lost_ms: "丢失总时长"
+  wrist_hidden_ratio: "手腕不可见"
+  joint_angles: "关节角度"
+  jitter: "抖动（mm，二阶差分）"
+  raw: "原始"
+  filtered: "滤波"
+  one_euro: "One Euro 滤波"
+  smoothing_on: "平滑"
+  min_cutoff: "minCutoff"
+  beta: "beta"
+  d_cutoff: "dCutoff"
+  debounce: "防抖（帧）"
+  enter_frames: "进入 N"
+  leave_frames: "离开 M"
+  session: "会话"
+  hold_min: "保持下限（秒）"
+  hold_max: "保持上限（秒）"
+  sequence: "顺序"
+  random: "随机"
+  sequential: "顺序"
+  target_rules: "目标姿势规则"
+  no_target: "无目标"
+  head_pitch: "头部俯仰"
+  torso_tilt: "躯干倾斜"

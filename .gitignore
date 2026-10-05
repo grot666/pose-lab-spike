@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.vite/
+coverage/
+*.part
+# NOTE: public/models/*.task and public/mediapipe/wasm/* ARE committed on purpose
+# (~78 MB total, every file < 50 MB) so the app runs offline right after clone.

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#04050a" />
+    <meta name="referrer" content="no-referrer" />
+    <!-- Local-only spike: everything (code, wasm, models) is served from this origin. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' ws: wss: data: blob:"
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>POSE LAB</title>
+  </head>
+  <body data-phase="idle">
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="dot"></span>
+          <span data-i18n="app.title"></span>
+          <span class="sep">/</span>
+          <span class="ai-name" data-i18n="ai.name"></span>
+        </div>
+        <div class="badges">
+          <span id="subject-id" class="badge subject"></span>
+          <span id="round-info" class="badge"></span>
+          <span id="phase-badge" class="badge phase"></span>
+          <span id="track-badge" class="badge track" data-state="idle"></span>
+        </div>
+      </header>
+
+      <main class="stage">
+        <section class="panel cam">
+          <div id="cam-wrap" class="cam-wrap mirrored">
+            <video id="video" muted playsinline></video>
+            <canvas id="overlay"></canvas>
+          </div>
+          <div id="lost-banner" class="lost-banner hidden"></div>
+        </section>
+
+        <section class="panel lab">
+          <canvas id="three"></canvas>
+          <div class="hud">
+            <div id="command" class="command"></div>
+            <div id="instruction" class="instruction"></div>
+            <div id="countdown" class="countdown"></div>
+            <div id="hold-bar" class="hold-bar hidden">
+              <div id="hold-fill" class="hold-fill"></div>
+              <span id="hold-text" class="hold-text"></span>
+            </div>
+            <div class="voice">
+              <div id="status-line" class="status-line"></div>
+              <div id="hint-line" class="hint-line hidden"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <details id="debug" class="debug"></details>
+
+      <div id="start-screen" class="overlay">
+        <div class="card">
+          <div class="orb"></div>
+          <h1 data-i18n="app.title"></h1>
+          <p class="subtitle" data-i18n="app.subtitle"></p>
+          <p class="consent" data-i18n="app.consent_note"></p>
+          <button id="start-btn" class="btn primary" type="button" data-i18n="app.start"></button>
+          <p id="start-progress" class="muted"></p>
+          <p id="start-error" class="error hidden"></p>
+          <nav id="lang-links" class="lang-links"></nav>
+        </div>
+      </div>
+
+      <div id="report" class="overlay hidden"></div>
+      <div id="safeword-end" class="overlay hidden"></div>
+
+      <button id="safeword-btn" class="safeword-btn" type="button" data-i18n="app.safeword" data-i18n-aria="app.safeword_aria"></button>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

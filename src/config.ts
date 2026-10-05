@@ -1,0 +1,99 @@
+/**
+ * Runtime configuration (numbers / switches only).
+ * All user-facing COPY lives exclusively in src/content/i18n/{zh-CN,en}.yaml.
+ * Pose rules live exclusively in src/content/poses.yaml.
+ */
+export type Lang = 'zh-CN' | 'en';
+export type ModelTier = 'lite' | 'full' | 'heavy';
+export type SequenceMode = 'random' | 'sequential';
+export type FacingMode = 'user' | 'environment';
+
+export interface AppConfig {
+  /** Default language. Override at runtime with ?lang=en / ?lang=zh-CN. */
+  defaultLang: Lang;
+  /** Language used when a key is missing in the active language. */
+  fallbackLang: Lang;
+  camera: { width: number; height: number; facingMode: FacingMode };
+  model: {
+    defaultTier: ModelTier;
+    /** Paths are relative to Vite BASE_URL -> served from public/, never from the network. */
+    wasmPath: string;
+    modelPaths: Record<ModelTier, string>;
+    preferGpu: boolean;
+    minPoseDetectionConfidence: number;
+    minPosePresenceConfidence: number;
+    minTrackingConfidence: number;
+  };
+  filter: { minCutoff: number; beta: number; dCutoff: number };
+  debounce: { enterFrames: number; leaveFrames: number };
+  tracking: {
+    /** Visibility threshold for a joint to count as "visible". */
+    visibilityThreshold: number;
+    /** Mean visibility of shoulders+hips required to count as tracked. */
+    coreVisibility: number;
+    /** Consecutive bad time before declaring full track loss (avoids flicker). */
+    lostAfterMs: number;
+    /** Consecutive good frames before leaving the lost state. */
+    regainFrames: number;
+  };
+  session: {
+    sequenceMode: SequenceMode;
+    /** Number of pose commands per round. 0 = one pass over all poses. */
+    posesPerRound: number;
+    /** Time allowed to get into the commanded pose. */
+    enterTimeoutMs: number;
+    /** Hold duration range (a value is drawn uniformly per command; min==max for fixed). */
+    holdMinMs: number;
+    holdMaxMs: number;
+    /** Frames of a stable person before the round starts. */
+    personDetectFrames: number;
+    /** How long the command is announced before the enter countdown starts. */
+    commandAnnounceMs: number;
+    /** How long a success/fail result is shown before the next command. */
+    resultShowMs: number;
+  };
+  ui: {
+    /** Debug panel refresh rate (Hz) - DOM updates are throttled. */
+    debugHz: number;
+    /** Show debug panel expanded on load. Also ?debug=1. */
+    debugOpen: boolean;
+  };
+}
+
+export const config: AppConfig = {
+  defaultLang: 'zh-CN',
+  fallbackLang: 'en',
+  camera: { width: 1280, height: 720, facingMode: 'user' },
+  model: {
+    defaultTier: 'full',
+    wasmPath: 'mediapipe/wasm',
+    modelPaths: {
+      lite: 'models/pose_landmarker_lite.task',
+      full: 'models/pose_landmarker_full.task',
+      heavy: 'models/pose_landmarker_heavy.task',
+    },
+    preferGpu: true,
+    minPoseDetectionConfidence: 0.5,
+    minPosePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  },
+  filter: { minCutoff: 1.2, beta: 0.05, dCutoff: 1.0 },
+  debounce: { enterFrames: 10, leaveFrames: 15 },
+  tracking: {
+    visibilityThreshold: 0.5,
+    coreVisibility: 0.5,
+    lostAfterMs: 400,
+    regainFrames: 3,
+  },
+  session: {
+    sequenceMode: 'random',
+    posesPerRound: 0,
+    enterTimeoutMs: 10_000,
+    holdMinMs: 5_000,
+    holdMaxMs: 15_000,
+    personDetectFrames: 15,
+    commandAnnounceMs: 1_800,
+    resultShowMs: 2_600,
+  },
+  ui: { debugHz: 6, debugOpen: false },
+};

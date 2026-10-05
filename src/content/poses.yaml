@@ -1,0 +1,104 @@
+# Pose library. ONLY ids + rules live here; display names / instructions / hints
+# are in src/content/i18n/*.yaml (poses.<id>.* and hints.<rule id>).
+# Hot-reloads in `npm run dev`.
+#
+# Geometry is evaluated on WORLD landmarks: metres, origin hip centre,
+# +x image-right, +y up, +z toward the camera.
+#
+# Rule types
+#   angle       angles: [knee_left, ...]  min/max degrees (all listed must pass)
+#               names: elbow_*, shoulder_* (0 = arm down along torso), hip_* (180 = straight), knee_* (180 = straight)
+#   torso_tilt  min/max degrees from vertical
+#   head_pitch  min/max degrees; neutral ~ -12, bowed < -30, chin up > 0
+#   distance    a, b points; ref shoulder_width|hip_width|torso|meter; optional axes "xz"; min/max ratio
+#   offset      (a.axis - b.axis) / ref ; a/b may be lists evaluated pairwise; min/max
+#   visibility  joints: [...], min/max 0..1, mode all|any
+#   any_of / all_of: rules: [...]     not: rule: {...}
+# Points: any of the 33 MediaPipe joint names, plus shoulder_mid hip_mid ear_mid
+#         wrist_mid elbow_mid knee_mid ankle_mid
+# Optional per rule: minVisibility (default from config.tracking.visibilityThreshold)
+# Rule status: pass | fail | unknown (joints not visible => unknown, never a fail)
+
+poses:
+  # Standing at attention: upright, legs straight, feet together, arms straight at the sides.
+  - id: attention
+    rules:
+      - { id: torso_upright, type: torso_tilt, max: 15 }
+      - { id: legs_straight, type: angle, angles: [knee_left, knee_right], min: 155, minVisibility: 0.3 }
+      - { id: hips_straight, type: angle, angles: [hip_left, hip_right], min: 155 }
+      - { id: arms_straight, type: angle, angles: [elbow_left, elbow_right], min: 145 }
+      - { id: arms_down, type: angle, angles: [shoulder_left, shoulder_right], max: 30 }
+      - { id: hands_at_sides, type: distance, a: left_wrist, b: right_wrist, ref: shoulder_width, axes: x, min: 0.75 }
+      - { id: feet_together, type: distance, a: left_ankle, b: right_ankle, ref: shoulder_width, axes: xz, max: 0.75, minVisibility: 0.3 }
+      - { id: head_level, type: head_pitch, min: -30, max: 15 }
+
+  # At your service: standing, feet shoulder-width, hands clasped behind the back.
+  # Hidden wrists are EXPECTED here (they are behind the body) - see any_of.
+  - id: at_your_service
+    rules:
+      - { id: torso_upright, type: torso_tilt, max: 15 }
+      - { id: legs_straight, type: angle, angles: [knee_left, knee_right], min: 155, minVisibility: 0.3 }
+      - { id: feet_shoulder_width, type: distance, a: left_ankle, b: right_ankle, ref: shoulder_width, axes: xz, min: 0.75, max: 1.8, minVisibility: 0.3 }
+      - { id: elbows_close, type: angle, angles: [shoulder_left, shoulder_right], max: 45 }
+      - id: hands_behind_back
+        type: any_of
+        rules:
+          - { id: wrists_hidden, type: visibility, joints: [left_wrist, right_wrist], max: 0.5 }
+          - id: wrists_clasped_behind
+            type: all_of
+            rules:
+              - { id: wrists_behind_hips, type: offset, a: wrist_mid, b: hip_mid, axis: z, ref: shoulder_width, max: -0.05, minVisibility: 0.2 }
+              - { id: wrists_together, type: distance, a: left_wrist, b: right_wrist, ref: shoulder_width, max: 0.6, minVisibility: 0.2 }
+      - { id: head_level, type: head_pitch, min: -30, max: 15 }
+
+  # Inspection: standing, feet wide, fingers laced behind the head, elbows out.
+  - id: inspection
+    rules:
+      - { id: torso_upright, type: torso_tilt, max: 15 }
+      - { id: legs_straight, type: angle, angles: [knee_left, knee_right], min: 150, minVisibility: 0.3 }
+      - { id: feet_wide, type: distance, a: left_ankle, b: right_ankle, ref: shoulder_width, axes: xz, min: 1.4, minVisibility: 0.3 }
+      - { id: hands_high, type: offset, a: [left_wrist, right_wrist], b: [left_shoulder, right_shoulder], axis: y, ref: torso, min: 0.25, minVisibility: 0.3 }
+      - { id: elbows_bent, type: angle, angles: [elbow_left, elbow_right], max: 80, minVisibility: 0.3 }
+      - { id: elbows_wide, type: distance, a: left_elbow, b: right_elbow, ref: shoulder_width, axes: x, min: 1.4 }
+      - { id: hands_behind_head, type: distance, a: wrist_mid, b: ear_mid, ref: shoulder_width, max: 0.8, minVisibility: 0.3 }
+
+  # Wait: standing, hands clasped low in front, head bowed.
+  - id: wait
+    rules:
+      - { id: torso_upright, type: torso_tilt, max: 25 }
+      - { id: legs_straight, type: angle, angles: [knee_left, knee_right], min: 150, minVisibility: 0.3 }
+      - { id: hands_together, type: distance, a: left_wrist, b: right_wrist, ref: shoulder_width, max: 0.5 }
+      - { id: hands_low, type: offset, a: wrist_mid, b: hip_mid, axis: y, ref: torso, min: -0.45, max: 0.3 }
+      - { id: hands_in_front, type: offset, a: wrist_mid, b: hip_mid, axis: z, ref: shoulder_width, min: 0 }
+      - { id: head_bowed, type: head_pitch, max: -30 }
+
+  # Kneel: upright (high) kneel - knees on the floor, thighs vertical, torso straight.
+  - id: kneel
+    rules:
+      - { id: torso_upright, type: torso_tilt, max: 20 }
+      - { id: hips_straight, type: angle, angles: [hip_left, hip_right], min: 140 }
+      - { id: knees_bent_90, type: angle, angles: [knee_left, knee_right], min: 55, max: 130, minVisibility: 0.25 }
+      - { id: knees_together, type: distance, a: left_knee, b: right_knee, ref: shoulder_width, axes: x, max: 1.1, minVisibility: 0.3 }
+      - { id: head_level, type: head_pitch, min: -30, max: 20 }
+
+  # Nadu: kneeling sitting back on the heels, knees spread wide, hands on thighs, back straight, head up.
+  - id: nadu
+    rules:
+      - { id: torso_upright, type: torso_tilt, max: 20 }
+      - { id: sitting_on_heels, type: angle, angles: [knee_left, knee_right], max: 60, minVisibility: 0.2 }
+      - { id: hips_folded, type: angle, angles: [hip_left, hip_right], min: 60, max: 135 }
+      - { id: knees_wide, type: distance, a: left_knee, b: right_knee, ref: shoulder_width, axes: x, min: 1.15, minVisibility: 0.3 }
+      - { id: hands_on_thighs, type: offset, a: [left_wrist, right_wrist], b: [left_hip, right_hip], axis: y, ref: torso, min: -0.4, max: 0.35 }
+      - { id: hands_forward, type: offset, a: wrist_mid, b: hip_mid, axis: z, ref: shoulder_width, min: 0.15 }
+      - { id: hands_apart, type: distance, a: left_wrist, b: right_wrist, ref: shoulder_width, axes: x, min: 0.6 }
+      - { id: head_up, type: head_pitch, min: -22 }
+
+  # Collar me: kneeling, chin raised to present the neck, hands lifting the hair at the back of the neck.
+  - id: collar_me
+    rules:
+      - { id: kneeling, type: angle, angles: [knee_left, knee_right], max: 130, minVisibility: 0.2 }
+      - { id: torso_upright, type: torso_tilt, max: 25 }
+      - { id: chin_up, type: head_pitch, min: 0 }
+      - { id: hands_at_neck, type: offset, a: [left_wrist, right_wrist], b: [left_shoulder, right_shoulder], axis: y, ref: torso, min: 0.05, max: 0.6, minVisibility: 0.3 }
+      - { id: elbows_bent, type: angle, angles: [elbow_left, elbow_right], max: 90, minVisibility: 0.3 }
+      - { id: hands_near_head, type: distance, a: wrist_mid, b: ear_mid, ref: shoulder_width, max: 0.9, minVisibility: 0.3 }

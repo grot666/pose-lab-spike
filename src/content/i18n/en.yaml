@@ -1,0 +1,231 @@
+# English copy. ALL user-facing text lives here and in zh-CN.yaml (same keys).
+# Placeholders: {subjectId} {pose} {seconds} {elapsed} {target} {round} {step} {total} {tier} {n} ...
+# A list value = random variant per use. Edits hot-reload in `npm run dev`.
+
+meta:
+  lang_name: "English"
+
+ai:
+  name: "OBSERVER"
+
+app:
+  title: "POSE LAB"
+  subtitle: "Behavioural Compliance Observation Unit"
+  consent_note: "Adult, consensual role-play. All vision processing runs locally in this browser. No image or video is stored or uploaded."
+  start: "Begin observation"
+  loading_model: "Loading posture model ({tier})…"
+  requesting_camera: "Requesting optical sensor…"
+  camera_denied: "Camera unavailable or permission denied. The lab cannot observe what it cannot see."
+  model_failed: "Pose model failed to load: {error}"
+  insecure_context: "Camera needs HTTPS (or localhost). Open the https:// URL printed by npm run dev."
+  safeword: "SAFEWORD"
+  safeword_aria: "Safeword: stop everything immediately"
+  next_round: "Next round"
+  wake_lock_failed: "Screen may dim: wake lock unavailable."
+
+subject:
+  id_format: "S-{n}"
+  label: "Subject"
+
+hud:
+  subject: "Subject {subjectId}"
+  round: "Round {round} · {step}/{total}"
+  enter_countdown: "{seconds}s to comply"
+  hold: "Hold {elapsed} / {target}s"
+  paused: "TIMERS PAUSED"
+  phase:
+    idle: "STANDBY"
+    searching: "ACQUIRING"
+    command: "INSTRUCTION"
+    entering: "AWAITING COMPLIANCE"
+    holding: "HOLDING"
+    result: "LOGGING"
+    report: "REPORT"
+    stopped: "STOPPED"
+
+status:
+  idle:
+    - "Specimen chamber idle. Press begin when you are ready to be measured."
+  searching:
+    - "Face the sensor, {subjectId}. Entire body in frame. The lab is waiting."
+    - "Step back. Further. The Observer needs all of you in view."
+    - "No specimen detected. Present yourself to the sensor."
+  person_found:
+    - "Specimen {subjectId} acquired. Do try to be less disappointing than the last one."
+    - "There you are. Sample {subjectId}, logged. Let us see what you are worth."
+  entering:
+    - "{pose}. Now."
+    - "{pose}. The clock is running, {subjectId}."
+    - "I said {pose}. Do it properly."
+  entered:
+    - "Adequate. Hold it."
+    - "Position registered. Do not move."
+    - "Finally. Now stay exactly like that."
+  holding:
+    - "Hold. Every tremor is being recorded."
+    - "Still. The Observer is measuring you."
+    - "Stay put. Data does not collect itself."
+  leave:
+    - "You moved. The hold timer resets. Again."
+    - "Broken position. That was sloppy, {subjectId}. Start over."
+    - "Did I say you could move? Back into {pose}."
+  success:
+    - "Acceptable. Logged as compliant."
+    - "Held. The Observer is… marginally satisfied."
+    - "Recorded. Do not let it go to your head."
+  fail_timeout:
+    - "Too slow. Logged as non-compliant."
+    - "Time expired. Your file is getting longer, {subjectId}."
+    - "Failure recorded. Predictable."
+  track_lost:
+    - "Specimen left the observation field. Return to the sensor. Timers are paused."
+    - "Where did you go, {subjectId}? Back in frame. The clock is waiting for you."
+  track_regained:
+    - "Reacquired. Continue."
+    - "There you are. Resume."
+  wrists_hidden:
+    - "Hands where the lab can see them."
+  lower_body_hidden:
+    - "Legs out of frame. Step back."
+
+poses:
+  attention:
+    name: "Attention"
+    command: "ATTENTION"
+    instruction: "Stand straight. Feet together, arms straight at your sides, chin level."
+  at_your_service:
+    name: "At Your Service"
+    command: "AT YOUR SERVICE"
+    instruction: "Stand tall, feet shoulder-width apart, hands clasped behind your back."
+  inspection:
+    name: "Inspection"
+    command: "INSPECTION"
+    instruction: "Feet wide apart. Fingers laced behind your head, elbows out. Be inspected."
+  wait:
+    name: "Wait"
+    command: "WAIT"
+    instruction: "Stand still, hands clasped low in front of you, head bowed."
+  kneel:
+    name: "Kneel"
+    command: "KNEEL"
+    instruction: "High kneel: knees on the floor, thighs and back in one straight line."
+  nadu:
+    name: "Nadu"
+    command: "NADU"
+    instruction: "Kneel and sit back on your heels. Knees wide, palms on thighs, back straight, head up."
+  collar_me:
+    name: "Collar Me"
+    command: "COLLAR ME"
+    instruction: "Kneel. Lift your chin to present your neck, hands holding your hair up at the nape."
+
+hints:
+  torso_upright: "Back straight."
+  legs_straight: "Legs straight. Lock your knees."
+  hips_straight: "Hips forward. No slouching."
+  arms_straight: "Arms straight."
+  arms_down: "Arms down at your sides."
+  hands_at_sides: "Hands at your sides, not in front."
+  feet_together: "Feet together."
+  head_level: "Chin level. Eyes forward."
+  feet_shoulder_width: "Feet shoulder-width apart."
+  elbows_close: "Elbows in."
+  hands_behind_back: "Hands behind your back."
+  feet_wide: "Wider. Feet wide apart."
+  hands_high: "Hands up behind your head."
+  elbows_bent: "Bend those elbows."
+  elbows_wide: "Elbows out. Wide."
+  hands_behind_head: "Hands behind your head."
+  hands_together: "Hands together."
+  hands_low: "Hands lower, in front of your hips."
+  hands_in_front: "Hands in front of you."
+  head_bowed: "Head down."
+  knees_bent_90: "Knees on the floor. Thighs upright."
+  knees_together: "Knees closer."
+  sitting_on_heels: "Sit back on your heels."
+  hips_folded: "Sit down onto your heels."
+  knees_wide: "Knees wider."
+  hands_on_thighs: "Palms on your thighs."
+  hands_forward: "Hands forward, on your thighs."
+  hands_apart: "One hand on each thigh."
+  head_up: "Head up."
+  kneeling: "On your knees."
+  chin_up: "Chin up. Present your neck."
+  hands_at_neck: "Hands up at the back of your neck."
+  hands_near_head: "Hands closer to your head."
+
+report:
+  title: "Observation report · Round {round} · {subjectId}"
+  success_rate: "Compliance rate"
+  commands: "Commands"
+  success: "Compliant"
+  fail: "Non-compliant"
+  leaves: "Position breaks"
+  track_losses: "Left the field"
+  mean_enter: "Mean time to comply"
+  mean_hold: "Mean hold ratio"
+  perf: "FPS {fps} · inference {infer} ms (p95 {p95}) · jitter {jraw}→{jfilt} mm"
+  row: "{pose} — {outcome} · comply {enter}s · held {hold}/{target}s · breaks {leaves}"
+  outcome_success: "COMPLIANT"
+  outcome_fail: "FAILED"
+  not_entered: "—"
+  console_hint: "Full numeric metrics JSON written to the browser console."
+  verdict_good:
+    - "Surprisingly obedient, {subjectId}. Do not expect praise."
+  verdict_mid:
+    - "Mediocre. The Observer has seen better specimens. Again."
+  verdict_bad:
+    - "Pathetic data, {subjectId}. Your file will be reviewed. Repeat the protocol."
+
+safeword:
+  end_title: "Safeword received."
+  end_body:
+    - "Everything has stopped. You did well. Take a breath — you are safe."
+  end_detail: "Camera off, analysis stopped. No image or video was ever saved or uploaded."
+  end_care: "Drink some water, stretch, and check in with your partner."
+  end_reload: "Reload the page if you want to start again."
+
+track:
+  idle: "IDLE"
+  tracking: "TRACKING"
+  partial: "PARTIAL"
+  lost: "LOST"
+
+debug:
+  title: "Debug"
+  fps: "FPS"
+  inference: "Inference"
+  model_tier: "Model"
+  delegate: "Delegate"
+  camera: "Camera"
+  front: "Front"
+  back: "Back"
+  switching: "switching…"
+  state: "Track"
+  visibility: "Visibility (33 joints)"
+  track_stats: "Track stats"
+  tracked_ratio: "Tracked"
+  lost_events: "Loss events"
+  lost_ms: "Lost total"
+  wrist_hidden_ratio: "Wrists hidden"
+  joint_angles: "Joint angles"
+  jitter: "Jitter (mm, 2nd diff)"
+  raw: "raw"
+  filtered: "filtered"
+  one_euro: "One Euro filter"
+  smoothing_on: "Smoothing"
+  min_cutoff: "minCutoff"
+  beta: "beta"
+  d_cutoff: "dCutoff"
+  debounce: "Debounce (frames)"
+  enter_frames: "enter N"
+  leave_frames: "leave M"
+  session: "Session"
+  hold_min: "hold min (s)"
+  hold_max: "hold max (s)"
+  sequence: "Order"
+  random: "random"
+  sequential: "sequential"
+  target_rules: "Target pose rules"
+  no_target: "no target"
+  head_pitch: "head pitch"
+  torso_tilt: "torso tilt"
