@@ -51,6 +51,14 @@ describe('blendshape scoring', () => {
     expect(ev.score).toBe(1);
   });
 
+  it('smile passes at loosened webcam-friendly threshold (~0.3)', () => {
+    const ev = evaluateExpression(
+      shapes({ mouthSmileLeft: 0.32, mouthSmileRight: 0.31, mouthFrownLeft: 0.05 }),
+      byId.smile,
+    );
+    expect(ev.status).toBe('pass');
+  });
+
   it('smile fails when smile is too weak', () => {
     const ev = evaluateExpression(
       shapes({ mouthSmileLeft: 0.1, mouthSmileRight: 0.1, mouthFrownLeft: 0.05 }),

@@ -257,6 +257,8 @@ face:
   back_pose: "Back to pose mode"
   loading_model: "Loading face model…"
   model_failed: "Face model failed to load: {error}"
+  no_face: "No face in frame. Face the camera and move closer."
+  detect_error: "Face detector error: {error}"
   status:
     idle:
       - "Expression chamber idle. Press begin when you are ready to be measured."
