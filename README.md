@@ -4,7 +4,7 @@ A **local-only** spike that checks whether **MediaPipe Pose Landmarker** can do 
 
 The theme is an adult, consensual BDSM role-play set in a sci-fi AI lab. The "Dom" is a floating white sphere AI with no humanoid form and no speech. It talks through light (colour, pulse, orbit rings, scan beam, a hold-progress halo) and on-screen text in a cold, condescending lab voice.
 
-* No speech (no TTS), no backend, no cloud deploy. You run it locally. There is a quiet sci-fi lab hum plus a few UI beeps, all procedurally generated local files (see "Audio").
+* No speech (no TTS), no backend. You run it locally with `npm run dev`; CI also publishes the same static build to GitHub Pages (see "CI and GitHub Pages"), which is still fully client-side. There is a quiet sci-fi lab hum plus a few UI beeps, all procedurally generated local files (see "Audio").
 * **No network at runtime.** Models (`.task`) and the WASM runtime are served from `public/`. A Content-Security-Policy blocks every off-origin request (see "Findings" below).
 * **No image or video upload or saving.** Frames go straight from the `<video>` element to the in-memory detector.
 * There's a **safeword** button in the bottom-right corner at all times. It hard-stops the loop and the camera.
@@ -51,6 +51,23 @@ git add public && git commit -m "update mediapipe assets"
 ```
 
 This one-time script is the **only** step that touches the network. `@mediapipe/tasks-vision` is pinned to an exact version (`1.0.1`) so the JS and the committed WASM always match.
+
+### CI and GitHub Pages
+
+`.github/workflows/ci.yml` (GitHub Actions) runs `npm ci` → `npm test` → `npm run build` on every pull request and every push to `main`, and checks that the models / WASM / audio from `public/` were copied into `dist/`.
+
+* **Pull requests:** build and test only. Nothing is uploaded or deployed.
+* **Push to `main`:** additionally
+  * uploads `dist/` as a workflow artifact named **`pose-lab-dist`** (kept 30 days; download it from the run page under *Actions → CI → run → Artifacts*), and
+  * deploys `dist/` to **GitHub Pages**: <https://grot666.github.io/pose-lab-spike/>
+
+**How the Pages URL works.** This is a *project* site, so it is served from a sub-path: `https://<owner>.github.io/<repo>/`. (A *user/org* site would be a repo named `<owner>.github.io`, served from the domain root.) `vite.config.ts` builds with a relative base (`base: './'`), and all runtime asset URLs (models, WASM, audio) are resolved from `import.meta.env.BASE_URL` against the page location, so the same `dist/` works on the project sub-path, on a user/org site, behind a custom domain, and with `npm run preview`. If a host needs an absolute base, override it: `BASE_PATH=/pose-lab-spike/ npm run build`. Open the URL **with** the trailing slash (GitHub redirects `/pose-lab-spike` → `/pose-lab-spike/`).
+
+**Camera / secure context.** `getUserMedia` only works in a secure context (HTTPS or `localhost`). GitHub Pages is always HTTPS, so the camera works there on desktop and phones without any self-signed-certificate warning. Everything still runs in the browser: models and WASM are fetched from the same Pages origin, and frames never leave the device.
+
+**Self-hosting is unchanged:** `npm run dev` (HTTPS on 0.0.0.0:5173) remains the way to run it locally or on the LAN.
+
+Pages source must be set to **GitHub Actions** (*Settings → Pages → Build and deployment → Source*). It is already enabled for this repo.
 
 ### Test on a phone over the LAN
 

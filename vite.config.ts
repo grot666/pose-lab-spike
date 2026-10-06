@@ -26,7 +26,18 @@ function yamlPlugin(): Plugin {
 
 const isTest = !!process.env.VITEST;
 
+/**
+ * Public base path. Default './' (relative) so the same `dist/` works when served
+ * from a domain root (`npm run preview`, any static host) AND from a project
+ * GitHub Pages subpath (https://grot666.github.io/pose-lab-spike/). All runtime
+ * asset URLs (models, wasm, audio) are resolved from import.meta.env.BASE_URL
+ * against window.location, so relative works. Override with an absolute path if
+ * a host needs it, e.g. `BASE_PATH=/pose-lab-spike/ npm run build`.
+ */
+const base = process.env.BASE_PATH || './';
+
 export default defineConfig({
+  base,
   plugins: [yamlPlugin(), ...(isTest ? [] : [basicSsl()])],
   server: {
     host: '0.0.0.0',

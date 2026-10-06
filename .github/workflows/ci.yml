@@ -1,0 +1,74 @@
+name: CI
+
+# PRs: build + test only (no deploy, no artifact upload).
+# Push to main: build + test, upload dist/ as a workflow artifact, deploy to GitHub Pages.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      # Relative base './' (vite.config.ts default) works on the project Pages
+      # subpath and on any root-served host. Set BASE_PATH to override.
+      - run: npm run build
+
+      - name: Verify models / wasm / audio were copied into dist/
+        run: |
+          set -e
+          for f in models/pose_landmarker_lite.task models/pose_landmarker_full.task models/pose_landmarker_heavy.task \
+                   mediapipe/wasm/vision_wasm_internal.js mediapipe/wasm/vision_wasm_internal.wasm \
+                   audio/lab_drone_loop.wav index.html; do
+            test -s "dist/$f" || { echo "::error::dist/$f missing"; exit 1; }
+          done
+          du -sh dist
+
+      - name: Upload dist/ as workflow artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pose-lab-dist
+          path: dist/
+          retention-days: 30
+
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
