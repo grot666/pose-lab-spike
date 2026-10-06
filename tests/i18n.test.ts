@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import zh from '../src/content/i18n/zh-CN.yaml';
 import en from '../src/content/i18n/en.yaml';
 import posesYaml from '../src/content/poses.yaml';
+import expressionsYaml from '../src/content/expressions.yaml';
 import { I18n, flattenKeys, interpolate, resolveLang, type Dict } from '../src/core/i18n';
+import { collectExpressionRuleIds, parseExpressionLibrary } from '../src/core/expressionLibrary';
 import { collectRuleIds, parsePoseLibrary } from '../src/core/poseLibrary';
 
 describe('i18n core', () => {
@@ -65,6 +67,17 @@ describe('content yaml', () => {
         for (const k of ['name', 'command', 'instruction']) expect(i.has(`poses.${p.id}.${k}`), `${p.id}.${k}`).toBe(true);
       }
       for (const r of collectRuleIds(poses)) expect(i.has(`hints.${r}`), `hints.${r}`).toBe(true);
+    }
+  });
+
+  it('every expression has name/command/instruction and every top-level rule has a hint', () => {
+    const exprs = parseExpressionLibrary(expressionsYaml);
+    for (const lang of [zh, en] as Dict[]) {
+      const i = new I18n<'x'>({ x: lang }, 'x', 'x');
+      for (const e of exprs) {
+        for (const k of ['name', 'command', 'instruction']) expect(i.has(`expressions.${e.id}.${k}`), `${e.id}.${k}`).toBe(true);
+      }
+      for (const r of collectExpressionRuleIds(exprs)) expect(i.has(`hints.${r}`), `hints.${r}`).toBe(true);
     }
   });
 });

@@ -47,6 +47,15 @@ export class Lobby {
     $('#start-btn').addEventListener('click', () => this.onLocalStart());
     this.roomStartBtn.addEventListener('click', () => this.onRoomStart());
     this.roomCopyBtn.addEventListener('click', () => void this.copyViewerLink());
+    const faceBtn = document.getElementById('face-mode-btn');
+    faceBtn?.addEventListener('click', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('mode', 'face');
+      // Face mode is local-only: drop room params if somehow present.
+      url.searchParams.delete('role');
+      url.searchParams.delete('room');
+      location.assign(url.toString());
+    });
 
     // Placeholder via i18n (no native placeholder attr for data-i18n)
     document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]').forEach((el) => {

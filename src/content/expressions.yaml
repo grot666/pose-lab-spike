@@ -1,0 +1,67 @@
+# Facial expression library for Face Landmarker blendshapes.
+# ONLY ids + rules live here; display names / instructions / hints are in
+# src/content/i18n/*.yaml (expressions.<id>.* and hints.<rule id>).
+# Hot-reloads in `npm run dev`.
+#
+# MediaPipe Face Landmarker outputs 52 ARKit-style blendshape scores in [0, 1].
+# Rule types
+#   blendshape  name: <ARKit name>  min and/or max (score must fall in range)
+#   any_of / all_of: rules: [...]
+#   not: rule: {...}
+#
+# Limits (documented for operators):
+#   - tongue_out is often weak / noisy on webcam; threshold is low and may false-negative.
+#   - frown vs neutral can blur under soft lighting.
+#   - eyes_closed uses eyeBlink*; partial blinks may score as unknown until debounced.
+#   - surprise combines browInnerUp + jawOpen + eyeWide (all must pass).
+#   - No emotion classifier: these are geometric blendshape gates only.
+
+expressions:
+  - id: neutral
+    rules:
+      - { id: smile_low, type: blendshape, name: mouthSmileLeft, max: 0.22 }
+      - { id: smile_low_r, type: blendshape, name: mouthSmileRight, max: 0.22 }
+      - { id: frown_low, type: blendshape, name: mouthFrownLeft, max: 0.25 }
+      - { id: frown_low_r, type: blendshape, name: mouthFrownRight, max: 0.25 }
+      - { id: jaw_closed, type: blendshape, name: jawOpen, max: 0.18 }
+      - { id: brow_calm, type: blendshape, name: browInnerUp, max: 0.35 }
+      - { id: eyes_open_l, type: blendshape, name: eyeBlinkLeft, max: 0.45 }
+      - { id: eyes_open_r, type: blendshape, name: eyeBlinkRight, max: 0.45 }
+      - { id: tongue_in, type: blendshape, name: tongueOut, max: 0.2 }
+
+  - id: smile
+    rules:
+      - { id: smile_left, type: blendshape, name: mouthSmileLeft, min: 0.4 }
+      - { id: smile_right, type: blendshape, name: mouthSmileRight, min: 0.4 }
+      - { id: not_frowning, type: blendshape, name: mouthFrownLeft, max: 0.35 }
+
+  - id: frown
+    rules:
+      - { id: frown_left, type: blendshape, name: mouthFrownLeft, min: 0.35 }
+      - { id: frown_right, type: blendshape, name: mouthFrownRight, min: 0.35 }
+      - { id: not_smiling, type: blendshape, name: mouthSmileLeft, max: 0.35 }
+
+  - id: surprise
+    rules:
+      - { id: brows_up, type: blendshape, name: browInnerUp, min: 0.35 }
+      - { id: mouth_ajar, type: blendshape, name: jawOpen, min: 0.25 }
+      - id: eyes_wide
+        type: any_of
+        rules:
+          - { id: eye_wide_l, type: blendshape, name: eyeWideLeft, min: 0.25 }
+          - { id: eye_wide_r, type: blendshape, name: eyeWideRight, min: 0.25 }
+
+  - id: mouth_open
+    rules:
+      - { id: jaw_open, type: blendshape, name: jawOpen, min: 0.4 }
+      - { id: not_tongue, type: blendshape, name: tongueOut, max: 0.45 }
+
+  - id: eyes_closed
+    rules:
+      - { id: blink_left, type: blendshape, name: eyeBlinkLeft, min: 0.55 }
+      - { id: blink_right, type: blendshape, name: eyeBlinkRight, min: 0.55 }
+
+  - id: tongue_out
+    rules:
+      - { id: tongue, type: blendshape, name: tongueOut, min: 0.25 }
+      - { id: jaw_for_tongue, type: blendshape, name: jawOpen, min: 0.15 }

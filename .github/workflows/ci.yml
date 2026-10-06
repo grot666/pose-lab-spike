@@ -36,6 +36,7 @@ jobs:
         run: |
           set -e
           for f in models/pose_landmarker_lite.task models/pose_landmarker_full.task models/pose_landmarker_heavy.task \
+                   models/face_landmarker.task \
                    mediapipe/wasm/vision_wasm_internal.js mediapipe/wasm/vision_wasm_internal.wasm \
                    audio/lab_drone_loop.wav index.html; do
             test -s "dist/$f" || { echo "::error::dist/$f missing"; exit 1; }
