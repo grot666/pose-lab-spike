@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// One-time setup: download the three Pose Landmarker .task models and copy the
+// One-time setup: download Pose + Face Landmarker .task models and copy the
 // MediaPipe WASM runtime (version-matched to node_modules) into public/.
-// After this, the app needs NO network at runtime.
+// After this, the app needs NO network at runtime for models.
 //
 //   npm run fetch-models            # download missing models + (re)copy wasm
 //   npm run fetch-models -- --force # re-download models even if present
@@ -27,7 +27,8 @@ async function main() {
 
   for (const m of MODELS) {
     const dest = path.join(MODELS_DIR, m.file);
-    if (!force && fs.existsSync(dest) && fs.statSync(dest).size > 1_000_000) {
+    const min = m.minBytes ?? 1_000_000;
+    if (!force && fs.existsSync(dest) && fs.statSync(dest).size > min) {
       console.log(`[models] ${m.file} present (${(fs.statSync(dest).size / 1e6).toFixed(1)} MB) - skip`);
       continue;
     }

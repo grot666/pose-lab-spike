@@ -716,3 +716,35 @@ body.safeword .safeword-btn {
   background: rgba(4, 5, 10, 0.55);
   pointer-events: none;
 }
+
+
+/* Face expression mode */
+.confidence {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: rgba(140, 220, 255, 0.85);
+  margin-top: 0.25rem;
+}
+.confidence.hidden { display: none; }
+.face-mode-btn {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+body[data-mode="face"] #lobby,
+body[data-mode="face"] #room-entry {
+  display: none !important;
+}
+body[data-mode="face"] #face-entry {
+  display: block !important;
+}
+body[data-mode="face"] #face-entry.hidden {
+  display: block !important;
+}
+#face-back-link {
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

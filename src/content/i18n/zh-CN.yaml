@@ -33,6 +33,7 @@ hud:
   enter_countdown: "{seconds} 秒内就位"
   hold: "保持 {elapsed} / {target} 秒"
   paused: "计时已暂停"
+  confidence: "匹配度 {pct}%"
   phase:
     idle: "待机"
     searching: "捕获中"
@@ -153,6 +154,33 @@ hints:
   hands_at_neck: "手抬到颈后。"
   hands_near_head: "手再靠近头部。"
 
+  smile_low: "收起微笑。"
+  smile_low_r: "收起右侧微笑。"
+  frown_low: "别皱眉。"
+  frown_low_r: "别皱右侧眉。"
+  jaw_closed: "闭上嘴。"
+  brow_calm: "眉毛放平。"
+  eyes_open_l: "睁开左眼。"
+  eyes_open_r: "睁开右眼。"
+  tongue_in: "舌头收回。"
+  smile_left: "左侧嘴角上扬。"
+  smile_right: "右侧嘴角上扬。"
+  not_frowning: "别皱眉，微笑。"
+  frown_left: "左侧嘴角向下。"
+  frown_right: "右侧嘴角向下。"
+  not_smiling: "别笑，皱眉。"
+  brows_up: "挑起眉毛。"
+  mouth_ajar: "微微张嘴。"
+  eyes_wide: "睁大眼睛。"
+  eye_wide_l: "睁大左眼。"
+  eye_wide_r: "睁大右眼。"
+  jaw_open: "张开下巴。"
+  not_tongue: "舌头收回，只张嘴。"
+  blink_left: "闭上左眼。"
+  blink_right: "闭上右眼。"
+  tongue: "伸出舌头。"
+  jaw_for_tongue: "微微张嘴以便吐舌。"
+
 report:
   title: "观测报告 · 第 {round} 轮 · {subjectId}"
   success_rate: "服从率"
@@ -220,6 +248,78 @@ room:
   copied: "已复制"
   note: "多设备模式仅用 PeerJS 云信令（0.peerjs.com）。姿态关键点走点对点。任一侧按安全词，两端会话都会结束。"
   consent_extra: "房间模式会把姿态关键点（及会话 HUD 状态）分享给知道此房间码的对端。无账号；码为临时短码。"
+
+face:
+  entry: "表情测试"
+  subtitle: "面部表情服从性观测"
+  note: "独立模式：使用 Face Landmarker 混合形状评分。不与姿态会话混用。本地运行，模型不联网。"
+  start: "开始表情观测"
+  back_pose: "返回姿态模式"
+  loading_model: "正在载入面部模型…"
+  model_failed: "面部模型载入失败：{error}"
+  status:
+    idle:
+      - "表情舱待机。准备好被测量时，按下开始。"
+    searching:
+      - "面向传感器，{subjectId}。面部入镜。实验室在等你。"
+      - "靠近一些。观测者需要看清你的脸。"
+      - "未检测到面部。到传感器前报到。"
+    person_found:
+      - "面部已捕获。样本 {subjectId}，开始表情序列。"
+      - "找到你的脸了。尽量别比上一个更让人失望。"
+    entering:
+      - "{pose}。现在。"
+      - "{pose}。计时已经开始了，{subjectId}。"
+      - "我说了，{pose}。做标准。"
+    entered:
+      - "表情已登记。保持住。"
+      - "勉强合格。不许动。"
+    holding:
+      - "保持。每一次抽动都在被记录。"
+      - "别动。观测者正在测量你的脸。"
+    leave:
+      - "表情破了。保持计时清零。重来。"
+      - "我允许你换表情了吗？回到{pose}。"
+    success:
+      - "可以接受。记录为：服从。"
+      - "保持完成。观测者……略感满意。"
+    fail_timeout:
+      - "太慢了。记录为：不服从。"
+      - "时间到。你的档案又厚了一页，{subjectId}。"
+    track_lost:
+      - "面部离开观测区。回到传感器前。计时已暂停。"
+    track_regained:
+      - "重新捕获。继续。"
+
+expressions:
+  neutral:
+    name: "平静"
+    command: "平静"
+    instruction: "放松面部。不笑、不皱眉、嘴巴自然闭合，双眼睁开。"
+  smile:
+    name: "微笑"
+    command: "微笑"
+    instruction: "明显微笑。嘴角上扬，两侧对称。"
+  frown:
+    name: "皱眉"
+    command: "皱眉"
+    instruction: "皱起眉头与嘴角向下。看起来不悦。"
+  surprise:
+    name: "惊讶"
+    command: "惊讶"
+    instruction: "挑眉、睁大眼睛、微微张嘴。像被吓到一样。"
+  mouth_open:
+    name: "张嘴"
+    command: "张嘴"
+    instruction: "张开下巴。舌头收回。"
+  eyes_closed:
+    name: "闭眼"
+    command: "闭眼"
+    instruction: "双眼完全闭合。保持。"
+  tongue_out:
+    name: "吐舌"
+    command: "吐舌"
+    instruction: "伸出舌头。摄像头未必总能可靠检测到——尽力即可。"
 
 debug:
   title: "调试"

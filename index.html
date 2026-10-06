@@ -51,6 +51,7 @@
           <div class="hud">
             <div id="command" class="command"></div>
             <div id="instruction" class="instruction"></div>
+            <div id="confidence" class="confidence hidden"></div>
             <div id="countdown" class="countdown"></div>
             <div id="hold-bar" class="hold-bar hidden">
               <div id="hold-fill" class="hold-fill"></div>
@@ -95,6 +96,7 @@
             <p class="muted lobby-note" data-i18n="room.note"></p>
             <hr class="lobby-sep" />
             <button id="start-btn" class="btn" type="button" data-i18n="room.single"></button>
+            <button id="face-mode-btn" class="btn face-mode-btn" type="button" data-i18n="face.entry"></button>
           </div>
 
           <!-- Active room entry (?role=&room=) -->
@@ -104,6 +106,16 @@
             <div class="lobby-actions">
               <button id="room-start-btn" class="btn primary" type="button"></button>
               <button id="room-copy-btn" class="btn" type="button" data-i18n="room.copy_link"></button>
+            </div>
+          </div>
+
+          <!-- Face expression mode (?mode=face): local-only standalone test -->
+          <div id="face-entry" class="lobby hidden">
+            <p class="subtitle" data-i18n="face.subtitle"></p>
+            <p class="muted" data-i18n="face.note"></p>
+            <div class="lobby-actions">
+              <button id="face-start-btn" class="btn primary" type="button" data-i18n="face.start"></button>
+              <a id="face-back-link" class="btn" data-i18n="face.back_pose"></a>
             </div>
           </div>
 

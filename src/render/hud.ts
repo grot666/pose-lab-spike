@@ -17,6 +17,7 @@ export class Hud {
   private command = $('#command');
   private instruction = $('#instruction');
   private countdown = $('#countdown');
+  private confidenceEl = $('#confidence');
   private holdBar = $('#hold-bar') as HTMLElement;
   private holdFill = $('#hold-fill') as HTMLElement;
   private holdText = $('#hold-text');
@@ -28,8 +29,14 @@ export class Hud {
   private report = $('#report');
   private safewordEnd = $('#safeword-end');
   private lastStatusKey = '';
+  /** i18n key prefix for command/name/instruction: poses | expressions */
+  private contentPrefix: 'poses' | 'expressions' = 'poses';
 
   constructor(private i18n: I18n) {}
+
+  setContentPrefix(prefix: 'poses' | 'expressions'): void {
+    this.contentPrefix = prefix;
+  }
 
   /** Fill every [data-i18n] / [data-i18n-aria] element. Re-run on language HMR. */
   applyStatic(): void {
@@ -51,10 +58,22 @@ export class Hud {
     this.startScreen.classList.add('hidden');
   }
 
-  setStartBusy(text: string | null): void {
-    const btn = $('#start-btn') as HTMLButtonElement;
-    btn.disabled = !!text;
+  setStartBusy(text: string | null, btnId = 'start-btn'): void {
+    const btn = document.getElementById(btnId) as HTMLButtonElement | null;
+    if (btn) btn.disabled = !!text;
     $('#start-progress').textContent = text ?? '';
+  }
+
+  /** Match confidence 0..1 for expression / pose HUD; null hides. */
+  setConfidence(score: number | null): void {
+    if (!this.confidenceEl) return;
+    if (score === null || !Number.isFinite(score)) {
+      this.confidenceEl.textContent = '';
+      this.confidenceEl.classList.add('hidden');
+      return;
+    }
+    this.confidenceEl.classList.remove('hidden');
+    this.confidenceEl.textContent = this.i18n.t('hud.confidence', { pct: Math.round(score * 100) });
   }
 
   showStartError(text: string): void {
@@ -97,8 +116,8 @@ export class Hud {
     this.round.textContent = s.round > 0 && s.total > 0 ? this.i18n.t('hud.round', { round: s.round, step: s.step + 1, total: s.total }) : '';
 
     const showCmd = s.poseId && (s.phase === 'command' || s.phase === 'entering' || s.phase === 'holding' || s.phase === 'result');
-    this.command.textContent = showCmd ? this.i18n.t(`poses.${s.poseId}.command`) : '';
-    this.instruction.textContent = showCmd ? this.i18n.t(`poses.${s.poseId}.instruction`) : '';
+    this.command.textContent = showCmd ? this.i18n.t(`${this.contentPrefix}.${s.poseId}.command`) : '';
+    this.instruction.textContent = showCmd ? this.i18n.t(`${this.contentPrefix}.${s.poseId}.instruction`) : '';
     this.command.dataset.outcome = s.phase === 'result' ? (s.lastOutcome ?? '') : '';
 
     if (s.paused) {
@@ -134,7 +153,7 @@ export class Hud {
         'li',
         { class: a.outcome ? 'ok' : 'bad' },
         t('report.row', {
-          pose: t(`poses.${id}.name`),
+          pose: t(`${this.contentPrefix}.${id}.name`),
           outcome: t(a.outcome ? 'report.outcome_success' : 'report.outcome_fail'),
           enter: a.enterLatencyMs >= 0 ? (a.enterLatencyMs / 1000).toFixed(1) : t('report.not_entered'),
           hold: (a.holdAchievedMs / 1000).toFixed(1),

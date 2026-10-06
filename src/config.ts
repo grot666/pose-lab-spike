@@ -2,6 +2,7 @@
  * Runtime configuration (numbers / switches only).
  * All user-facing COPY lives exclusively in src/content/i18n/{zh-CN,en}.yaml.
  * Pose rules live exclusively in src/content/poses.yaml.
+ * Expression rules live exclusively in src/content/expressions.yaml.
  */
 export type Lang = 'zh-CN' | 'en';
 export type ModelTier = 'lite' | 'full' | 'heavy';
@@ -23,6 +24,15 @@ export interface AppConfig {
     minPoseDetectionConfidence: number;
     minPosePresenceConfidence: number;
     minTrackingConfidence: number;
+  };
+  /** Face Landmarker (expression mode, ?mode=face). Same offline public/ pattern. */
+  face: {
+    modelPath: string;
+    preferGpu: boolean;
+    minFaceDetectionConfidence: number;
+    minFacePresenceConfidence: number;
+    minTrackingConfidence: number;
+    numFaces: number;
   };
   filter: { minCutoff: number; beta: number; dCutoff: number };
   debounce: { enterFrames: number; leaveFrames: number };
@@ -105,6 +115,14 @@ export const config: AppConfig = {
     minPoseDetectionConfidence: 0.5,
     minPosePresenceConfidence: 0.5,
     minTrackingConfidence: 0.5,
+  },
+  face: {
+    modelPath: 'models/face_landmarker.task',
+    preferGpu: true,
+    minFaceDetectionConfidence: 0.5,
+    minFacePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+    numFaces: 1,
   },
   filter: { minCutoff: 1.2, beta: 0.05, dCutoff: 1.0 },
   debounce: { enterFrames: 10, leaveFrames: 15 },

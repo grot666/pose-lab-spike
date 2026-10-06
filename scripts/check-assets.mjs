@@ -8,7 +8,8 @@ import { MODELS, MODELS_DIR, PUBLIC_DIR, WASM_DIR } from './assets.mjs';
 const missing = [];
 for (const m of MODELS) {
   const p = path.join(MODELS_DIR, m.file);
-  if (!fs.existsSync(p) || fs.statSync(p).size < 1_000_000) missing.push(`public/models/${m.file}`);
+  const min = m.minBytes ?? 1_000_000;
+  if (!fs.existsSync(p) || fs.statSync(p).size < min) missing.push(`public/models/${m.file}`);
 }
 for (const f of ['vision_wasm_internal.js', 'vision_wasm_internal.wasm']) {
   if (!fs.existsSync(path.join(WASM_DIR, f))) missing.push(`public/mediapipe/wasm/${f}`);

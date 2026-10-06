@@ -31,7 +31,7 @@ Requires Node 20.19+ (or 22.12+). `npm run dev` / `npm run build` first run `scr
 | `npm run fetch-models` | One-time asset setup (see below). Add `-- --force` to re-download. |
 | `npm run gen-audio` | Re-synthesise `public/audio/*.wav` (deterministic, no deps, no network) |
 
-URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below).
+URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below), `?mode=face` (standalone facial expression test; see below).
 
 ### Multi-device rooms (PeerJS)
 
@@ -57,12 +57,23 @@ Direct URLs also work: `?role=camera&room=ABCD` / `?role=viewer&room=ABCD`.
 **CSP:** `connect-src` allows `'self'` plus `https://0.peerjs.com` and `wss://0.peerjs.com` for the broker. MediaPipe telemetry remains blocked.
 
 
+### Facial expression test (`?mode=face`)
+
+Standalone mode (not mixed into the default pose session). Entry: lobby button **表情测试 / Expression test**, or open `?mode=face`.
+
+* Uses MediaPipe **Face Landmarker** + 52 ARKit-style **blendshapes** (`public/models/face_landmarker.task`), same offline `public/` + CSP policy as pose models (PeerJS exceptions unchanged; face mode is local-only).
+* Configurable catalogue: `src/content/expressions.yaml` (ids + rules only). Copy in `src/content/i18n/{zh-CN,en}.yaml` under `expressions.*` / `face.*`.
+* Included expressions: **neutral, smile, frown, surprise, mouth_open, eyes_closed, tongue_out**. Limits: `tongue_out` is often weak on webcams; frown vs soft neutral can blur; no emotion classifier — blendshape gates only.
+* Same lab aesthetic: Start + Safeword, command HUD, **match confidence**, hold progress, round report, console JSON metrics (`mode: 1` tags face rounds; expression index in `attempts[].pose`).
+* Pure scoring + debounce covered by `tests/expressionRules.test.ts`.
+
 ### Model and WASM assets (offline)
 
 The repo **commits** the assets, so a fresh clone runs offline after `npm install`:
 
 ```
 public/models/pose_landmarker_{lite,full,heavy}.task   5.8 / 9.4 / 30.7 MB
+public/models/face_landmarker.task                     ~3.8 MB
 public/mediapipe/wasm/vision_wasm_*.{js,wasm}          ~34 MB
 ```
 

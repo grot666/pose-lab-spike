@@ -33,6 +33,7 @@ hud:
   enter_countdown: "{seconds}s to comply"
   hold: "Hold {elapsed} / {target}s"
   paused: "TIMERS PAUSED"
+  confidence: "Match {pct}%"
   phase:
     idle: "STANDBY"
     searching: "ACQUIRING"
@@ -153,6 +154,33 @@ hints:
   hands_at_neck: "Hands up at the back of your neck."
   hands_near_head: "Hands closer to your head."
 
+  smile_low: "Drop the smile."
+  smile_low_r: "Drop the right-side smile."
+  frown_low: "Stop frowning."
+  frown_low_r: "Stop the right-side frown."
+  jaw_closed: "Close your mouth."
+  brow_calm: "Relax your brows."
+  eyes_open_l: "Open your left eye."
+  eyes_open_r: "Open your right eye."
+  tongue_in: "Tongue in."
+  smile_left: "Lift the left corner of your mouth."
+  smile_right: "Lift the right corner of your mouth."
+  not_frowning: "Smile — do not frown."
+  frown_left: "Pull the left corner down."
+  frown_right: "Pull the right corner down."
+  not_smiling: "Frown — do not smile."
+  brows_up: "Raise your brows."
+  mouth_ajar: "Part your lips."
+  eyes_wide: "Widen your eyes."
+  eye_wide_l: "Widen your left eye."
+  eye_wide_r: "Widen your right eye."
+  jaw_open: "Open your jaw."
+  not_tongue: "Tongue in — just open the mouth."
+  blink_left: "Close your left eye."
+  blink_right: "Close your right eye."
+  tongue: "Stick your tongue out."
+  jaw_for_tongue: "Open slightly so the tongue can show."
+
 report:
   title: "Observation report · Round {round} · {subjectId}"
   success_rate: "Compliance rate"
@@ -220,6 +248,78 @@ room:
   copied: "Copied"
   note: "Multi-device uses the PeerJS cloud broker (0.peerjs.com) for signaling only. Pose landmarks travel peer-to-peer. Safeword on either device ends the session for both."
   consent_extra: "Room mode shares pose landmarks (and session HUD state) with the peer who knows this room code. No account; codes are short-lived."
+
+face:
+  entry: "Expression test"
+  subtitle: "Facial Expression Compliance Observation"
+  note: "Standalone mode: Face Landmarker blendshape scoring. Not mixed into the pose session. Runs locally; models stay offline."
+  start: "Begin expression observation"
+  back_pose: "Back to pose mode"
+  loading_model: "Loading face model…"
+  model_failed: "Face model failed to load: {error}"
+  status:
+    idle:
+      - "Expression chamber idle. Press begin when you are ready to be measured."
+    searching:
+      - "Face the sensor, {subjectId}. Face in frame. The lab is waiting."
+      - "Closer. The Observer needs a clear view of your face."
+      - "No face detected. Present yourself to the sensor."
+    person_found:
+      - "Face acquired. Sample {subjectId}, expression sequence begins."
+      - "There is your face. Do try to be less disappointing than the last one."
+    entering:
+      - "{pose}. Now."
+      - "{pose}. The clock is running, {subjectId}."
+      - "I said {pose}. Do it properly."
+    entered:
+      - "Expression registered. Hold it."
+      - "Adequate. Do not move."
+    holding:
+      - "Hold. Every twitch is being recorded."
+      - "Still. The Observer is measuring your face."
+    leave:
+      - "Broken expression. The hold timer resets. Again."
+      - "Did I say you could change? Back into {pose}."
+    success:
+      - "Acceptable. Logged as compliant."
+      - "Held. The Observer is… marginally satisfied."
+    fail_timeout:
+      - "Too slow. Logged as non-compliant."
+      - "Time expired. Your file is getting longer, {subjectId}."
+    track_lost:
+      - "Face left the observation field. Return to the sensor. Timers are paused."
+    track_regained:
+      - "Reacquired. Continue."
+
+expressions:
+  neutral:
+    name: "Neutral"
+    command: "NEUTRAL"
+    instruction: "Relax your face. No smile, no frown, mouth closed, eyes open."
+  smile:
+    name: "Smile"
+    command: "SMILE"
+    instruction: "Smile clearly. Both corners of the mouth up, roughly symmetric."
+  frown:
+    name: "Frown"
+    command: "FROWN"
+    instruction: "Furrow and pull the mouth corners down. Look displeased."
+  surprise:
+    name: "Surprise"
+    command: "SURPRISE"
+    instruction: "Raise brows, widen eyes, part the lips — as if startled."
+  mouth_open:
+    name: "Mouth Open"
+    command: "MOUTH OPEN"
+    instruction: "Open your jaw. Keep the tongue in."
+  eyes_closed:
+    name: "Eyes Closed"
+    command: "EYES CLOSED"
+    instruction: "Close both eyes fully. Hold."
+  tongue_out:
+    name: "Tongue Out"
+    command: "TONGUE OUT"
+    instruction: "Stick your tongue out. Webcam detection can be unreliable — do your best."
 
 debug:
   title: "Debug"
