@@ -19,7 +19,7 @@ if (missing.length) {
   console.error('\nRun once:  npm run fetch-models\n');
   process.exit(1);
 }
-console.log('[check-assets] local MediaPipe models + wasm present');
+console.log('[check-assets] local MediaPipe pose+face models + wasm present');
 
 // Audio is optional (the app runs silent without it) -> warn only.
 const AUDIO = ['lab_drone_loop.wav', 'cue_command.wav', 'cue_success.wav', 'cue_fail.wav', 'cue_track_lost.wav'];

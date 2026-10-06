@@ -42,15 +42,22 @@ export class CameraAdapter {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia unavailable (needs HTTPS or localhost)');
     this.stop();
     this.facingMode = facingMode;
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        facingMode: { ideal: facingMode },
-        width: { ideal: this.opts.width },
-        height: { ideal: this.opts.height },
-        frameRate: { ideal: 30 },
-      },
-    });
+    const videoConstraints: MediaTrackConstraints = {
+      facingMode: { ideal: facingMode },
+      width: { ideal: this.opts.width },
+      height: { ideal: this.opts.height },
+      frameRate: { ideal: 30 },
+    };
+    // Face mode needs the selfie cam; prefer a hard facingMode when ideal fails on some mobiles.
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
+    } catch (err) {
+      if (facingMode !== 'user') throw err;
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { ...videoConstraints, facingMode },
+      });
+    }
     this.video.srcObject = this.stream;
     await new Promise<void>((resolve) => {
       if (this.video.readyState >= 2) return resolve();

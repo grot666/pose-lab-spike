@@ -119,9 +119,10 @@ export const config: AppConfig = {
   face: {
     modelPath: 'models/face_landmarker.task',
     preferGpu: true,
-    minFaceDetectionConfidence: 0.5,
-    minFacePresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    // Slightly looser than pose defaults so webcam faces lock more reliably on Pages.
+    minFaceDetectionConfidence: 0.4,
+    minFacePresenceConfidence: 0.4,
+    minTrackingConfidence: 0.4,
     numFaces: 1,
   },
   filter: { minCutoff: 1.2, beta: 0.05, dCutoff: 1.0 },

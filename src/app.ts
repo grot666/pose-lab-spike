@@ -13,6 +13,7 @@ import { AudioBank, SilentAudioBackend } from './audio/audioBank';
 import { loadAudioPrefs, safeLocalStorage, saveAudioPrefs } from './audio/audioPrefs';
 import { LAB_CUE, LAB_CUES } from './audio/labCues';
 import { WebAudioBackend } from './audio/webAudioBackend';
+import { assetUrl } from './core/assetUrl';
 import { config, type FacingMode, type Lang, type ModelTier } from './config';
 import { computeAllAngles, headPitch, torsoTilt } from './core/geometry';
 import type { I18n } from './core/i18n';
@@ -41,11 +42,7 @@ const TIERS: ModelTier[] = ['lite', 'full', 'heavy'];
 
 export type AppMode = 'local' | 'camera' | 'viewer';
 
-/** Cue src (relative to BASE_URL, served from public/) -> same-origin URL. */
-function assetUrl(path: string): string {
-  const b = import.meta.env.BASE_URL || '/';
-  return new URL(b.replace(/\/?$/, '/') + path.replace(/^\//, ''), window.location.href).href;
-}
+/** Cue src resolved via core/assetUrl (BASE_URL-safe for GitHub Pages). */
 const JITTER_JOINTS = [J.nose, ...CORE_JOINTS, J.left_elbow, J.right_elbow, J.left_knee, J.right_knee];
 
 export class App {

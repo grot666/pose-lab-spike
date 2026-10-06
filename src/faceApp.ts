@@ -11,6 +11,7 @@ import { loadAudioPrefs, safeLocalStorage, saveAudioPrefs } from './audio/audioP
 import { LAB_CUE, LAB_CUES } from './audio/labCues';
 import { WebAudioBackend } from './audio/webAudioBackend';
 import { config, type Lang } from './config';
+import { assetUrl } from './core/assetUrl';
 import type { I18n } from './core/i18n';
 import {
   evaluateExpression,
@@ -27,11 +28,6 @@ import { $ } from './render/dom';
 import { Hud } from './render/hud';
 import { LabScene } from './render/labScene';
 import type { Mood } from './render/sphereAI';
-
-function assetUrl(path: string): string {
-  const b = import.meta.env.BASE_URL || '/';
-  return new URL(b.replace(/\/?$/, '/') + path.replace(/^\//, ''), window.location.href).href;
-}
 
 /** Sparse face-mesh indices useful for a light overlay. */
 const FACE_RING = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
@@ -68,6 +64,8 @@ export class FaceApp {
   private hintRuleSince = 0;
   private hintShownAt = 0;
   private resultMood: Mood = 'success';
+  private noFaceSince: number | null = null;
+  private lastDetectErrorShown = '';
 
   constructor(
     exprs: ExpressionDefinition[],
@@ -212,8 +210,11 @@ export class FaceApp {
         this.detector.close();
         return;
       }
+      this.hud.setStartBusy(null, 'face-start-btn');
       this.hud.hideStart();
       this.running = true;
+      this.noFaceSince = null;
+      this.lastDetectErrorShown = '';
       this.session.start();
       this.scheduleNext();
     } catch (err) {
@@ -226,7 +227,9 @@ export class FaceApp {
           ? this.i18n.t('app.insecure_context')
           : code === 'camera'
             ? this.i18n.t('app.camera_denied')
-            : this.i18n.t('face.model_failed', { error: (err as Error).message }),
+            : this.i18n.t('face.model_failed', {
+                error: (err as Error).message,
+              }),
       );
     }
   }
@@ -291,6 +294,7 @@ export class FaceApp {
 
     const track = this.tracking.update(!!frame?.present, now);
     const lost = track.state === 'lost';
+    const faceMissingHud = this.updateFacePresenceHud(!!frame?.present, now);
 
     const targetId = this.session.targetPoseId;
     const target = targetId ? this.exprMap.get(targetId) : undefined;
@@ -314,12 +318,43 @@ export class FaceApp {
           : 0,
     );
     this.hud.setTrack(track.state);
-    this.hud.setLost(snap.paused || (lost && snap.phase !== 'searching'));
+    if (!faceMissingHud) {
+      this.hud.setLost(snap.paused || (lost && snap.phase !== 'searching'));
+    }
     this.hud.update(snap);
     const showConf =
       (snap.phase === 'entering' || snap.phase === 'holding' || snap.phase === 'result') && ev !== null;
     this.hud.setConfidence(showConf ? this.lastConfidence : null);
     this.updateVoice(snap, ev, now);
+  }
+
+  /** @returns true when the lost banner was set for prolonged no-face during search. */
+  private updateFacePresenceHud(present: boolean, now: number): boolean {
+    const detectErr = this.detector.lastError;
+    if (detectErr && detectErr !== this.lastDetectErrorShown) {
+      this.lastDetectErrorShown = detectErr;
+      this.hud.setHint(this.i18n.t('face.detect_error', { error: detectErr }));
+      console.error('[face-lab] detector error', detectErr);
+    }
+    if (present) {
+      this.noFaceSince = null;
+      if (!detectErr && this.lastDetectErrorShown) {
+        this.lastDetectErrorShown = '';
+        this.hud.setHint(null);
+      }
+      return false;
+    }
+    if (this.noFaceSince === null) this.noFaceSince = now;
+    const missingFor = now - this.noFaceSince;
+    const snap = this.session.snapshot();
+    // During searching, PoseSession suppresses the lost banner; surface a dedicated face-missing cue.
+    if (snap.phase === 'searching' && missingFor > 1500) {
+      this.hud.setLost(true);
+      const banner = document.getElementById('lost-banner');
+      if (banner) banner.textContent = this.i18n.t('face.no_face');
+      return true;
+    }
+    return false;
   }
 
   private drawOverlay(frame: FaceFrame | null, lost: boolean): void {

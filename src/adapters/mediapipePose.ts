@@ -8,6 +8,7 @@
  */
 import { FilesetResolver, PoseLandmarker, type PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 import type { ModelTier } from '../config';
+import { assetUrl, wasmAssetDir } from '../core/assetUrl';
 import type { Landmark, PoseFrame } from '../core/landmarks';
 
 export interface PoseDetectorOptions {
@@ -26,11 +27,6 @@ export interface PoseDetector {
   /** Returns null when no person is detected. */
   detect(video: HTMLVideoElement, timestampMs: number): PoseFrame | null;
   close(): void;
-}
-
-function base(path: string): string {
-  const b = import.meta.env.BASE_URL || '/';
-  return new URL(b.replace(/\/?$/, '/') + path.replace(/^\//, ''), window.location.href).href;
 }
 
 /** MediaPipe world: metres, hip origin, y DOWN, z smaller = closer. Unified: y up, +z toward camera. */
@@ -58,10 +54,10 @@ export class MediaPipePoseDetector implements PoseDetector {
   constructor(private opts: PoseDetectorOptions) {}
 
   async load(tier: ModelTier): Promise<void> {
-    if (!this.fileset) this.fileset = await FilesetResolver.forVisionTasks(base(this.opts.wasmPath));
+    if (!this.fileset) this.fileset = await FilesetResolver.forVisionTasks(wasmAssetDir(this.opts.wasmPath));
     const create = (delegate: 'GPU' | 'CPU') =>
       PoseLandmarker.createFromOptions(this.fileset!, {
-        baseOptions: { modelAssetPath: base(this.opts.modelPaths[tier]), delegate },
+        baseOptions: { modelAssetPath: assetUrl(this.opts.modelPaths[tier]), delegate },
         runningMode: 'VIDEO',
         numPoses: 1,
         minPoseDetectionConfidence: this.opts.minPoseDetectionConfidence,
