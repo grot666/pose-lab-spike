@@ -31,7 +31,7 @@ Requires Node 20.19+ (or 22.12+). `npm run dev` / `npm run build` first run `scr
 | `npm run fetch-models` | One-time asset setup (see below). Add `-- --force` to re-download. |
 | `npm run gen-audio` | Re-synthesise `public/audio/*.wav` (deterministic, no deps, no network) |
 
-URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below), `?mode=face` (standalone facial expression test; see below).
+URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (debug panel; **open by default**, use `?debug=0` to close), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below), `?mode=face` (standalone facial expression test; see below).
 
 ### Multi-device rooms (PeerJS)
 

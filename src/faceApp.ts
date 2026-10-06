@@ -12,6 +12,8 @@ import { LAB_CUE, LAB_CUES } from './audio/labCues';
 import { WebAudioBackend } from './audio/webAudioBackend';
 import { config, type Lang } from './config';
 import { assetUrl } from './core/assetUrl';
+import { buildLabel } from './core/buildInfo';
+import { diagLog } from './core/diagLog';
 import type { I18n } from './core/i18n';
 import {
   evaluateExpression,
@@ -25,6 +27,7 @@ import { ButtonSafewordSource, SafewordController } from './core/safeword';
 import { PoseSession, type SessionEvent, type SessionSnapshot } from './core/session';
 import { AudioToggle } from './render/audioToggle';
 import { $ } from './render/dom';
+import { FaceDebugPanel } from './render/faceDebugPanel';
 import { Hud } from './render/hud';
 import { LabScene } from './render/labScene';
 import type { Mood } from './render/sphereAI';
@@ -68,6 +71,9 @@ export class FaceApp {
   private lastDetectErrorShown = '';
   private reloadInFlight: Promise<void> | null = null;
   private readonly faceDebugEl = document.getElementById('face-debug');
+  private readonly faceDebug: FaceDebugPanel;
+  private lastDebugAt = 0;
+  private presenceLogged: boolean | null = null;
 
   constructor(
     exprs: ExpressionDefinition[],
@@ -136,13 +142,28 @@ export class FaceApp {
     this.lab.start();
 
     document.body.dataset.mode = 'face';
-    $('#debug').classList.add('hidden');
+    const dbgRoot = $('#debug') as HTMLDetailsElement;
+    const debugParam = q.get('debug');
+    const debugOpen = debugParam === '0' ? false : config.ui.debugOpen || debugParam === '1';
+    this.faceDebug = new FaceDebugPanel(dbgRoot, i18n, debugOpen);
     this.faceDebugEl?.classList.remove('hidden');
+    this.renderBuildBadge();
+    diagLog.push('app', 'face mode boot', {
+      version: buildLabel(),
+      debugOpen: debugOpen ? 1 : 0,
+      href: location.href,
+      secure: window.isSecureContext ? 1 : 0,
+    });
     this.renderFaceDebug(null);
     $('#face-entry').classList.remove('hidden');
 
     $('#face-start-btn').addEventListener('click', () => void this.start());
     this.i18n.onChange(() => this.onI18nChange());
+  }
+
+  private renderBuildBadge(): void {
+    const el = document.getElementById('build-badge');
+    if (el) el.textContent = buildLabel();
   }
 
   setExpressions(exprs: ExpressionDefinition[]): void {
@@ -180,6 +201,7 @@ export class FaceApp {
     this.hud.setSubject();
     this.audioToggle.render();
     this.renderLangLinks();
+    this.faceDebug.build();
     if (this.hud.statusKey) this.hud.say(this.hud.statusKey, this.exprParams());
   }
 
@@ -187,6 +209,7 @@ export class FaceApp {
     if (this.safeword.triggered || this.running) return;
     this.audio.unlock();
     void this.audio.loop(LAB_CUE.ambience, config.audio.ambienceFadeInMs);
+    diagLog.push('app', 'start clicked');
     try {
       if (!window.isSecureContext) throw Object.assign(new Error('insecure'), { code: 'insecure' });
       this.hud.setStartBusy(this.i18n.t('app.requesting_camera'), 'face-start-btn');
@@ -197,6 +220,7 @@ export class FaceApp {
         await this.camera.start(config.camera.facingMode);
       } catch (err) {
         console.error(err);
+        diagLog.push('error', 'camera start failed', { error: String((err as Error)?.message ?? err) });
         throw Object.assign(new Error('camera'), { code: 'camera' });
       }
       if (this.safeword.triggered) return this.camera.stop();
@@ -207,6 +231,7 @@ export class FaceApp {
         await this.detector.load();
       } catch (err) {
         console.error(err);
+        diagLog.push('error', 'model load failed', { error: String((err as Error)?.message ?? err) });
         throw Object.assign(new Error(String((err as Error)?.message ?? err)), { code: 'model' });
       }
       if (this.safeword.triggered) {
@@ -219,6 +244,13 @@ export class FaceApp {
       this.running = true;
       this.noFaceSince = null;
       this.lastDetectErrorShown = '';
+      this.presenceLogged = null;
+      diagLog.push('app', 'session running', {
+        delegate: this.detector.delegate ?? '—',
+        model: this.detector.loadedModelUrl ?? '',
+      });
+      this.lastDebugAt = 0;
+      this.renderFaceDebug(null);
       this.session.start();
       this.scheduleNext();
     } catch (err) {
@@ -258,7 +290,7 @@ export class FaceApp {
     this.hud.setTrack('idle');
     this.hud.setLost(false);
     this.hud.setConfidence(null);
-    this.faceDebugEl?.classList.add('hidden');
+    diagLog.push('app', 'safeword');
     this.hud.say('safeword.end_title');
     this.hud.showSafewordEnd();
     console.info(JSON.stringify({ safeword: 1, face: 1, atMs: Math.round(performance.now()) }));
@@ -337,16 +369,19 @@ export class FaceApp {
 
   private ensureDetectorHealthy(): void {
     if (!this.detector.needsReload || this.reloadInFlight || this.safeword.triggered) return;
+    diagLog.push('reload', 'Face Landmarker reload start');
     this.reloadInFlight = this.detector
       .load()
       .then(() => {
         this.lastDetectErrorShown = '';
         this.hud.setHint(null);
+        diagLog.push('reload', 'Face Landmarker reload ok', { delegate: this.detector.delegate ?? '—' });
         console.info('[face-lab] Face Landmarker reloaded after graph fault');
       })
       .catch((err) => {
         const msg = String((err as Error)?.message ?? err);
         this.hud.setHint(this.i18n.t('face.detect_error', { error: msg }));
+        diagLog.push('error', 'Face Landmarker reload failed', { error: msg });
         console.error('[face-lab] Face Landmarker reload failed', err);
       })
       .finally(() => {
@@ -356,17 +391,31 @@ export class FaceApp {
 
   private renderFaceDebug(frame: FaceFrame | null): void {
     const el = this.faceDebugEl;
-    if (!el) return;
     const d = this.detector.debug;
-    const err = d.lastError || d.skipReason || '—';
-    const meta = `del:${d.delegate ?? '—'} ${d.videoWidth}x${d.videoHeight} rs:${d.readyState} ts:${d.timestampMs}${d.needsReload ? ' RELOAD' : ''}`;
-    el.textContent = this.i18n.t('face.debug_hud', {
-      faces: frame?.faceCount ?? d.faceCount,
-      presence: (frame?.present ? 1 : d.presenceScore).toFixed(2),
-      error: err.length > 80 ? `${err.slice(0, 80)}…` : err,
-      meta,
-    });
-    el.classList.remove('hidden');
+    if (el) {
+      const err = d.lastError || d.skipReason || '—';
+      const meta = `del:${d.delegate ?? '—'} ${d.videoWidth}x${d.videoHeight} rs:${d.readyState} ts:${d.timestampMs} hit:${d.detectHits}/${d.detectAttempts}${d.needsReload ? ' RELOAD' : ''} ${buildLabel()}`;
+      el.textContent = this.i18n.t('face.debug_hud', {
+        faces: frame?.faceCount ?? d.faceCount,
+        presence: (frame?.present ? 1 : d.presenceScore).toFixed(2),
+        error: err.length > 80 ? `${err.slice(0, 80)}…` : err,
+        meta,
+      });
+      el.classList.remove('hidden');
+    }
+    const now = performance.now();
+    if (now - this.lastDebugAt > 1000 / config.ui.debugHz) {
+      this.lastDebugAt = now;
+      this.faceDebug.render({
+        fps: this.fps.stat.mean,
+        inferMs: this.infer.mean,
+        detect: d,
+        modelUrl: this.detector.loadedModelUrl,
+        wasmDir: this.detector.loadedWasmDir,
+        present: !!frame?.present,
+        phase: this.session.snapshot().phase,
+      });
+    }
   }
 
     /** @returns true when the lost banner was set for prolonged no-face during search. */
@@ -378,12 +427,20 @@ export class FaceApp {
       console.error('[face-lab] detector error', detectErr);
     }
     if (present) {
+      if (this.presenceLogged !== true) {
+        diagLog.push('presence', 'face acquired');
+        this.presenceLogged = true;
+      }
       this.noFaceSince = null;
       if (!detectErr && this.lastDetectErrorShown) {
         this.lastDetectErrorShown = '';
         this.hud.setHint(null);
       }
       return false;
+    }
+    if (this.presenceLogged !== false) {
+      diagLog.push('presence', 'face missing');
+      this.presenceLogged = false;
     }
     if (this.noFaceSince === null) this.noFaceSince = now;
     const missingFor = now - this.noFaceSince;

@@ -12,6 +12,7 @@
  */
 import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 import { assetUrl, wasmAssetDir } from '../core/assetUrl';
+import { diagLog } from '../core/diagLog';
 import { blendshapesFromCategories, type BlendshapeMap } from '../core/expressionRules';
 import { nextVideoTimestampMs } from '../core/videoTimestamp';
 
@@ -49,6 +50,9 @@ export interface FaceDetectDebug {
   readyState: number;
   timestampMs: number;
   needsReload: boolean;
+  detectAttempts: number;
+  detectHits: number;
+  detectMisses: number;
 }
 
 export interface FaceDetector {
@@ -58,6 +62,8 @@ export interface FaceDetector {
   /** After a detectForVideo fault the graph is dead — caller must load() again. */
   readonly needsReload: boolean;
   readonly debug: FaceDetectDebug;
+  readonly loadedModelUrl: string | null;
+  readonly loadedWasmDir: string | null;
   load(): Promise<void>;
   detect(video: HTMLVideoElement, timestampMs: number): FaceFrame | null;
   close(): void;
@@ -84,13 +90,18 @@ async function assertAssetReachable(url: string, label: string): Promise<void> {
   } catch (err) {
     throw new Error(`${label} fetch failed (${url}): ${(err as Error)?.message ?? err}`);
   }
-  // Some static hosts omit HEAD; fall back to ranged GET.
-  if (res.status === 405 || res.status === 501) {
-    res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' }, cache: 'no-cache' });
+  // Some static hosts omit HEAD or block it; fall back to ranged GET.
+  if (!res.ok || res.status === 405 || res.status === 501) {
+    try {
+      res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' }, cache: 'no-cache' });
+    } catch (err) {
+      throw new Error(`${label} ranged GET failed (${url}): ${(err as Error)?.message ?? err}`);
+    }
   }
-  if (!res.ok) {
+  if (!res.ok && res.status !== 206) {
     throw new Error(`${label} HTTP ${res.status} at ${url}`);
   }
+  diagLog.push('model', `${label} reachable`, { status: res.status, url });
 }
 
 export class MediaPipeFaceDetector implements FaceDetector {
@@ -104,6 +115,12 @@ export class MediaPipeFaceDetector implements FaceDetector {
   private lastVideoH = 0;
   private lastReadyState = 0;
   private lastUsedTs = -1;
+  private detectAttempts = 0;
+  private detectHits = 0;
+  private detectMisses = 0;
+  private lastLoggedSkip: string | null = null;
+  private lastMissLogAt = 0;
+  private lastHitLogAt = 0;
   needsReload = false;
   delegate: 'GPU' | 'CPU' | null = null;
   lastError: string | null = null;
@@ -125,6 +142,9 @@ export class MediaPipeFaceDetector implements FaceDetector {
       readyState: this.lastReadyState,
       timestampMs: this.lastUsedTs,
       needsReload: this.needsReload,
+      detectAttempts: this.detectAttempts,
+      detectHits: this.detectHits,
+      detectMisses: this.detectMisses,
     };
   }
 
@@ -132,16 +152,28 @@ export class MediaPipeFaceDetector implements FaceDetector {
     this.lastError = null;
     this.needsReload = false;
     this.skipReason = null;
+    this.lastLoggedSkip = null;
     const wasmDir = wasmAssetDir(this.opts.wasmPath);
     const model = assetUrl(this.opts.modelPath);
     this.loadedWasmDir = wasmDir;
     this.loadedModelUrl = model;
+    diagLog.push('model', 'load start', {
+      model,
+      wasmDir,
+      preferGpu: this.opts.preferGpu ? 1 : 0,
+      minDet: this.opts.minFaceDetectionConfidence,
+      minPres: this.opts.minFacePresenceConfidence,
+      minTrack: this.opts.minTrackingConfidence,
+    });
 
     await assertAssetReachable(model, 'Face model');
     // Probe one wasm script so a wrong BASE_URL fails with a clear message (not a WASM instantiate crash).
     await assertAssetReachable(`${wasmDir}/vision_wasm_internal.js`, 'MediaPipe WASM');
 
-    if (!this.fileset) this.fileset = await FilesetResolver.forVisionTasks(wasmDir);
+    if (!this.fileset) {
+      diagLog.push('model', 'FilesetResolver.forVisionTasks', { wasmDir });
+      this.fileset = await FilesetResolver.forVisionTasks(wasmDir);
+    }
     const create = (delegate: 'GPU' | 'CPU') =>
       FaceLandmarker.createFromOptions(this.fileset!, {
         baseOptions: { modelAssetPath: model, delegate },
@@ -156,18 +188,22 @@ export class MediaPipeFaceDetector implements FaceDetector {
     let next: FaceLandmarker;
     let delegate: 'GPU' | 'CPU' = this.opts.preferGpu ? 'GPU' : 'CPU';
     try {
+      diagLog.push('model', `createFromOptions ${delegate}`);
       next = await create(delegate);
     } catch (err) {
       if (delegate === 'CPU') {
         this.lastError = String((err as Error)?.message ?? err);
+        diagLog.push('error', 'Face Landmarker create failed (CPU)', { error: this.lastError });
         throw err;
       }
       console.warn('[face] GPU delegate failed, falling back to CPU', err);
+      diagLog.push('model', 'GPU create failed → CPU fallback', { error: String((err as Error)?.message ?? err) });
       delegate = 'CPU';
       try {
         next = await create(delegate);
       } catch (err2) {
         this.lastError = String((err2 as Error)?.message ?? err2);
+        diagLog.push('error', 'Face Landmarker create failed (CPU fallback)', { error: this.lastError });
         throw err2;
       }
     }
@@ -176,6 +212,7 @@ export class MediaPipeFaceDetector implements FaceDetector {
     this.delegate = delegate;
     this.lastTs = -1;
     this.lastUsedTs = -1;
+    diagLog.push('model', 'load ok', { delegate });
   }
 
   detect(video: HTMLVideoElement, timestampMs: number): FaceFrame | null {
@@ -184,20 +221,20 @@ export class MediaPipeFaceDetector implements FaceDetector {
     this.lastReadyState = video.readyState;
 
     if (this.needsReload || !this.landmarker) {
-      this.skipReason = this.needsReload ? 'needs_reload' : 'not_loaded';
+      this.noteSkip(this.needsReload ? 'needs_reload' : 'not_loaded');
       this.lastFaceCount = 0;
       this.lastPresence = 0;
       return null;
     }
     if (video.readyState < 2) {
-      this.skipReason = `readyState_${video.readyState}`;
+      this.noteSkip(`readyState_${video.readyState}`);
       this.lastFaceCount = 0;
       this.lastPresence = 0;
       return null;
     }
     // 0×0 frames throw inside MediaPipe and permanently wedge the graph — never call.
     if (video.videoWidth < 1 || video.videoHeight < 1) {
-      this.skipReason = 'zero_size';
+      this.noteSkip('zero_size');
       this.lastFaceCount = 0;
       this.lastPresence = 0;
       return null;
@@ -207,17 +244,61 @@ export class MediaPipeFaceDetector implements FaceDetector {
     this.lastTs = ts;
     this.lastUsedTs = ts;
     this.skipReason = null;
+    this.lastLoggedSkip = null;
+    this.detectAttempts += 1;
     try {
       const result = this.landmarker.detectForVideo(video, ts);
       this.lastError = null;
       this.lastFaceCount = result.faceLandmarks?.length ?? 0;
       this.lastPresence = this.lastFaceCount > 0 ? 1 : 0;
-      return toFaceFrame(result, timestampMs);
+      const frame = toFaceFrame(result, timestampMs);
+      if (frame) {
+        this.detectHits += 1;
+        const now = typeof performance !== 'undefined' ? performance.now() : 0;
+        if (now - this.lastHitLogAt > 1000) {
+          this.lastHitLogAt = now;
+          const lm0 = frame.landmarks[0];
+          diagLog.push('detect', 'hit', {
+            faces: frame.faceCount,
+            blendshapes: Object.keys(frame.blendshapes).length,
+            ts,
+            x0: lm0?.x ?? -1,
+            y0: lm0?.y ?? -1,
+            hits: this.detectHits,
+            attempts: this.detectAttempts,
+          });
+        }
+      } else {
+        this.detectMisses += 1;
+        const now = typeof performance !== 'undefined' ? performance.now() : 0;
+        if (now - this.lastMissLogAt > 500) {
+          this.lastMissLogAt = now;
+          diagLog.push('detect', 'miss', {
+            faces: this.lastFaceCount,
+            ts,
+            w: this.lastVideoW,
+            h: this.lastVideoH,
+            rs: this.lastReadyState,
+            misses: this.detectMisses,
+            attempts: this.detectAttempts,
+            delegate: this.delegate ?? '—',
+          });
+        }
+      }
+      return frame;
     } catch (err) {
       this.lastError = String((err as Error)?.message ?? err);
       this.lastFaceCount = 0;
       this.lastPresence = 0;
+      this.detectMisses += 1;
       console.error('[face] detectForVideo failed — landmarker wedged, will reload', err);
+      diagLog.push('error', 'detectForVideo threw — graph wedged', {
+        error: this.lastError,
+        ts,
+        w: this.lastVideoW,
+        h: this.lastVideoH,
+        rs: this.lastReadyState,
+      });
       // Any detectForVideo fault leaves the calculator graph unusable.
       try {
         this.landmarker.close();
@@ -232,7 +313,20 @@ export class MediaPipeFaceDetector implements FaceDetector {
     }
   }
 
+  private noteSkip(reason: string): void {
+    this.skipReason = reason;
+    if (this.lastLoggedSkip === reason) return;
+    this.lastLoggedSkip = reason;
+    diagLog.push('detect', `skip:${reason}`, {
+      w: this.lastVideoW,
+      h: this.lastVideoH,
+      rs: this.lastReadyState,
+      needsReload: this.needsReload ? 1 : 0,
+    });
+  }
+
   close(): void {
+    diagLog.push('model', 'close');
     this.landmarker?.close();
     this.landmarker = null;
     this.delegate = null;
