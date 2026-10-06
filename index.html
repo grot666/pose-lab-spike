@@ -100,6 +100,7 @@
             <hr class="lobby-sep" />
             <button id="start-btn" class="btn" type="button" data-i18n="room.single"></button>
             <button id="face-mode-btn" class="btn face-mode-btn" type="button" data-i18n="face.entry"></button>
+            <button id="avatar-mode-btn" class="btn face-mode-btn" type="button" data-i18n="avatar.entry"></button>
           </div>
 
           <!-- Active room entry (?role=&room=) -->
@@ -119,6 +120,16 @@
             <div class="lobby-actions">
               <button id="face-start-btn" class="btn primary" type="button" data-i18n="face.start"></button>
               <a id="face-back-link" class="btn" data-i18n="face.back_pose"></a>
+            </div>
+          </div>
+
+          <!-- VTuber avatar skin (?mode=avatar): live face → 皮套, local-only -->
+          <div id="avatar-entry" class="lobby hidden">
+            <p class="subtitle" data-i18n="avatar.subtitle"></p>
+            <p class="muted" data-i18n="avatar.note"></p>
+            <div class="lobby-actions">
+              <button id="avatar-start-btn" class="btn primary" type="button" data-i18n="avatar.start"></button>
+              <a id="avatar-back-link" class="btn" data-i18n="avatar.back_pose"></a>
             </div>
           </div>
 

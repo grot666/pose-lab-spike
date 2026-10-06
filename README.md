@@ -31,7 +31,7 @@ Requires Node 20.19+ (or 22.12+). `npm run dev` / `npm run build` first run `scr
 | `npm run fetch-models` | One-time asset setup (see below). Add `-- --force` to re-download. |
 | `npm run gen-audio` | Re-synthesise `public/audio/*.wav` (deterministic, no deps, no network) |
 
-URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (debug panel; **open by default**, use `?debug=0` to close), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below), `?mode=face` (standalone facial expression test; see below).
+URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (debug panel; **open by default**, use `?debug=0` to close), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below), `?mode=face` (standalone facial expression test; see below), `?mode=avatar` (live VTuber avatar skin; see below).
 
 ### Multi-device rooms (PeerJS)
 
@@ -68,6 +68,18 @@ Standalone mode (not mixed into the default pose session). Entry: lobby button *
 * Always-on face debug strip distinguishes **已检测到脸** vs **表情未达标**, shows live top blendshapes + score vs 100% need, mirror/portrait badge for selfie cams (e.g. 720×1280). Throttled `DiagLog` lines on expression score / pass-fail reasons (Copy logs).
 * Same lab aesthetic: Start + Safeword, command HUD, **match confidence**, hold progress, round report, console JSON metrics (`mode: 1` tags face rounds; expression index in `attempts[].pose`).
 * Pure scoring + debounce covered by `tests/expressionRules.test.ts`.
+
+
+### Live avatar skin / VTuber 皮套 (`?mode=avatar`)
+
+Standalone **live** mode (not mixed into pose or expression-test sessions). Entry: lobby button **虚拟皮套（VTuber） / Avatar skin (VTuber)**, or open `?mode=avatar`.
+
+* Same offline Face Landmarker as `?mode=face`, but continuous driving — no command/hold/report game loop.
+* Maps blendshapes → avatar morphs (smile, frown, jaw/mouth, blink, eye-wide, brow, tongue) and face-mesh landmarks → head yaw/pitch/roll + stage position/scale (`src/core/avatarMorphs.ts`).
+* Large three.js sci-fi **VTuber skin** fills the lab panel (head tracking, mouth sync, eyes/expression) — not a tiny HUD face (`src/render/avatarSkin.ts` + `avatarScene.ts`).
+* Debug strip + version badge + DiagLog / Copy logs still work; safeword ends the session. i18n under `avatar.*` (zh/en).
+* Pure mapping covered by `tests/avatarMorphs.test.ts`.
+
 
 ### Model and WASM assets (offline)
 

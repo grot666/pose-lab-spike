@@ -308,6 +308,24 @@ face:
     track_regained:
       - "Reacquired. Continue."
 
+avatar:
+  entry: "Avatar skin (VTuber)"
+  subtitle: "Live Avatar Skin · Face → 皮套"
+  note: "Standalone live mode: Face Landmarker drives a stylized VTuber avatar (head tracking, mouth sync, eyes/expression). Not the expression test game. Local-only; models stay offline."
+  start: "Go live"
+  back_pose: "Back to pose mode"
+  phase_live: "LIVE"
+  hud_driving: "Avatar driving"
+  hud_morphs: "morphs smile:{smile} jaw:{jaw} blink:{blink} brow:{brow}"
+  hud_pose: "head yaw:{yaw}° pitch:{pitch}° roll:{roll}°"
+  status:
+    idle:
+      - "Avatar chamber idle. Press go live when you are ready to drive the skin."
+    live:
+      - "Live. Face the sensor — the skin follows you."
+    tracking:
+      - "Face locked. Mouth, eyes, and head are syncing to the avatar."
+
 expressions:
   neutral:
     name: "Neutral"
