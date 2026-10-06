@@ -66,6 +66,8 @@ export class FaceApp {
   private resultMood: Mood = 'success';
   private noFaceSince: number | null = null;
   private lastDetectErrorShown = '';
+  private reloadInFlight: Promise<void> | null = null;
+  private readonly faceDebugEl = document.getElementById('face-debug');
 
   constructor(
     exprs: ExpressionDefinition[],
@@ -135,6 +137,8 @@ export class FaceApp {
 
     document.body.dataset.mode = 'face';
     $('#debug').classList.add('hidden');
+    this.faceDebugEl?.classList.remove('hidden');
+    this.renderFaceDebug(null);
     $('#face-entry').classList.remove('hidden');
 
     $('#face-start-btn').addEventListener('click', () => void this.start());
@@ -254,6 +258,7 @@ export class FaceApp {
     this.hud.setTrack('idle');
     this.hud.setLost(false);
     this.hud.setConfidence(null);
+    this.faceDebugEl?.classList.add('hidden');
     this.hud.say('safeword.end_title');
     this.hud.showSafewordEnd();
     console.info(JSON.stringify({ safeword: 1, face: 1, atMs: Math.round(performance.now()) }));
@@ -287,10 +292,12 @@ export class FaceApp {
   }
 
   private process(now: number): void {
+    this.ensureDetectorHealthy();
     const t0 = performance.now();
     const frame = this.detector.detect(this.video, now);
     this.infer.push(performance.now() - t0);
     this.fps.tick(now);
+    this.renderFaceDebug(frame);
 
     const track = this.tracking.update(!!frame?.present, now);
     const lost = track.state === 'lost';
@@ -328,7 +335,41 @@ export class FaceApp {
     this.updateVoice(snap, ev, now);
   }
 
-  /** @returns true when the lost banner was set for prolonged no-face during search. */
+  private ensureDetectorHealthy(): void {
+    if (!this.detector.needsReload || this.reloadInFlight || this.safeword.triggered) return;
+    this.reloadInFlight = this.detector
+      .load()
+      .then(() => {
+        this.lastDetectErrorShown = '';
+        this.hud.setHint(null);
+        console.info('[face-lab] Face Landmarker reloaded after graph fault');
+      })
+      .catch((err) => {
+        const msg = String((err as Error)?.message ?? err);
+        this.hud.setHint(this.i18n.t('face.detect_error', { error: msg }));
+        console.error('[face-lab] Face Landmarker reload failed', err);
+      })
+      .finally(() => {
+        this.reloadInFlight = null;
+      });
+  }
+
+  private renderFaceDebug(frame: FaceFrame | null): void {
+    const el = this.faceDebugEl;
+    if (!el) return;
+    const d = this.detector.debug;
+    const err = d.lastError || d.skipReason || '—';
+    const meta = `del:${d.delegate ?? '—'} ${d.videoWidth}x${d.videoHeight} rs:${d.readyState} ts:${d.timestampMs}${d.needsReload ? ' RELOAD' : ''}`;
+    el.textContent = this.i18n.t('face.debug_hud', {
+      faces: frame?.faceCount ?? d.faceCount,
+      presence: (frame?.present ? 1 : d.presenceScore).toFixed(2),
+      error: err.length > 80 ? `${err.slice(0, 80)}…` : err,
+      meta,
+    });
+    el.classList.remove('hidden');
+  }
+
+    /** @returns true when the lost banner was set for prolonged no-face during search. */
   private updateFacePresenceHud(present: boolean, now: number): boolean {
     const detectErr = this.detector.lastError;
     if (detectErr && detectErr !== this.lastDetectErrorShown) {
