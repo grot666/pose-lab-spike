@@ -18,6 +18,9 @@ import type { I18n } from './core/i18n';
 import {
   evaluateExpression,
   firstFailingRule,
+  formatExpressionGateReason,
+  topBlendshapes,
+  type BlendshapeMap,
   type ExpressionDefinition,
   type ExpressionEvaluation,
 } from './core/expressionRules';
@@ -74,6 +77,10 @@ export class FaceApp {
   private readonly faceDebug: FaceDebugPanel;
   private lastDebugAt = 0;
   private presenceLogged: boolean | null = null;
+  private lastScoreLogAt = 0;
+  private lastScoreLogKey = '';
+  private lastEval: ExpressionEvaluation | null = null;
+  private lastShapes: BlendshapeMap = {};
 
   constructor(
     exprs: ExpressionDefinition[],
@@ -94,9 +101,21 @@ export class FaceApp {
       minTrackingConfidence: config.face.minTrackingConfidence,
       numFaces: config.face.numFaces,
     });
+    const fs = config.faceSession;
     this.session = new PoseSession(
       exprs.map((e) => e.id),
-      { ...config.session, sequenceMode: sequence, ...config.debounce },
+      {
+        ...config.session,
+        sequenceMode: sequence,
+        enterFrames: fs.enterFrames,
+        leaveFrames: fs.leaveFrames,
+        holdMinMs: fs.holdMinMs,
+        holdMaxMs: fs.holdMaxMs,
+        personDetectFrames: fs.personDetectFrames,
+        enterTimeoutMs: fs.enterTimeoutMs,
+        commandAnnounceMs: fs.commandAnnounceMs,
+        resultShowMs: fs.resultShowMs,
+      },
     );
     this.session.on((e) => this.onSessionEvent(e));
 
@@ -337,8 +356,12 @@ export class FaceApp {
 
     const targetId = this.session.targetPoseId;
     const target = targetId ? this.exprMap.get(targetId) : undefined;
-    const ev = frame && target ? evaluateExpression(frame.blendshapes, target) : null;
+    const shapes = frame?.blendshapes ?? {};
+    const ev = frame && target ? evaluateExpression(shapes, target) : null;
     this.lastConfidence = ev?.score ?? 0;
+    this.lastEval = ev;
+    this.lastShapes = shapes;
+    this.logExpressionScore(now, targetId, target, ev, shapes, !!frame?.present);
 
     const snap = this.session.update({
       nowMs: now,
@@ -392,17 +415,60 @@ export class FaceApp {
   private renderFaceDebug(frame: FaceFrame | null): void {
     const el = this.faceDebugEl;
     const d = this.detector.debug;
+    const present = !!frame?.present;
+    const ev = this.lastEval;
+    const targetId = this.session.targetPoseId;
     if (el) {
+      const statusKey = !present
+        ? 'face.hud_no_face'
+        : ev && ev.status === 'pass'
+          ? 'face.hud_expr_pass'
+          : present && targetId
+            ? 'face.hud_expr_fail'
+            : 'face.hud_face_ok';
+      const status = this.i18n.t(statusKey);
+      const scorePct = ev ? Math.round(ev.score * 100) : 0;
+      const needPct = 100;
+      const scoreLine =
+        present && targetId
+          ? this.i18n.t('face.hud_score', {
+              target: targetId,
+              pct: scorePct,
+              need: needPct,
+              status: ev?.status ?? '—',
+            })
+          : '';
+      const reason =
+        present && targetId && ev && ev.status !== 'pass'
+          ? formatExpressionGateReason(this.lastShapes, this.exprMap.get(targetId)!, ev)
+          : '';
+      const top = topBlendshapes(this.lastShapes, 5)
+        .map((b) => `${b.name}=${b.score.toFixed(2)}`)
+        .join(' ');
+      const topLine = top ? this.i18n.t('face.hud_top_shapes', { shapes: top }) : '';
+      const vw = d.videoWidth || this.video.videoWidth;
+      const vh = d.videoHeight || this.video.videoHeight;
+      const mirror = this.camera.mirrored
+        ? this.i18n.t(vh > vw && vw > 0 ? 'face.mirror_portrait' : 'face.mirror_label', { w: vw, h: vh })
+        : this.i18n.t('face.mirror_off', { w: vw, h: vh });
       const err = d.lastError || d.skipReason || '—';
-      const meta = `del:${d.delegate ?? '—'} ${d.videoWidth}x${d.videoHeight} rs:${d.readyState} ts:${d.timestampMs} hit:${d.detectHits}/${d.detectAttempts}${d.needsReload ? ' RELOAD' : ''} ${buildLabel()}`;
-      el.textContent = this.i18n.t('face.debug_hud', {
-        faces: frame?.faceCount ?? d.faceCount,
-        presence: (frame?.present ? 1 : d.presenceScore).toFixed(2),
-        error: err.length > 80 ? `${err.slice(0, 80)}…` : err,
-        meta,
-      });
+      const meta = `del:${d.delegate ?? '—'} ${vw}x${vh} rs:${d.readyState} hit:${d.detectHits}/${d.detectAttempts}${d.needsReload ? ' RELOAD' : ''} ${buildLabel()}`;
+      el.textContent = [
+        `${status} · ${this.i18n.t('face.debug_faces', { faces: frame?.faceCount ?? d.faceCount, presence: (present ? 1 : d.presenceScore).toFixed(2) })}`,
+        scoreLine,
+        reason ? this.i18n.t('face.hud_reason', { reason }) : '',
+        topLine,
+        mirror,
+        this.i18n.t('face.debug_meta', { error: err.length > 60 ? `${err.slice(0, 60)}…` : err, meta }),
+      ]
+        .filter(Boolean)
+        .join('\n');
+      el.classList.toggle('ok', present && (!ev || ev.status === 'pass'));
+      el.classList.toggle('warn', present && !!ev && ev.status !== 'pass');
+      el.classList.toggle('bad', !present);
       el.classList.remove('hidden');
     }
+    this.renderMirrorBadge(d.videoWidth || this.video.videoWidth, d.videoHeight || this.video.videoHeight);
     const now = performance.now();
     if (now - this.lastDebugAt > 1000 / config.ui.debugHz) {
       this.lastDebugAt = now;
@@ -412,10 +478,61 @@ export class FaceApp {
         detect: d,
         modelUrl: this.detector.loadedModelUrl,
         wasmDir: this.detector.loadedWasmDir,
-        present: !!frame?.present,
+        present,
         phase: this.session.snapshot().phase,
+        targetId,
+        exprStatus: ev?.status ?? null,
+        exprScore: ev?.score ?? null,
+        exprReason: targetId && ev ? formatExpressionGateReason(this.lastShapes, this.exprMap.get(targetId)!, ev) : null,
+        topShapes: topBlendshapes(this.lastShapes, 5)
+          .map((b) => `${b.name}=${b.score.toFixed(2)}`)
+          .join(' '),
+        mirrored: this.camera.mirrored,
       });
     }
+  }
+
+  private renderMirrorBadge(w: number, h: number): void {
+    const badge = document.getElementById('mirror-badge');
+    if (!badge) return;
+    if (!this.running) {
+      badge.classList.add('hidden');
+      return;
+    }
+    const portrait = h > w && w > 0;
+    badge.textContent = this.camera.mirrored
+      ? this.i18n.t(portrait ? 'face.mirror_portrait' : 'face.mirror_label', { w, h })
+      : this.i18n.t('face.mirror_off', { w, h });
+    badge.classList.remove('hidden');
+  }
+
+  private logExpressionScore(
+    now: number,
+    targetId: string | null,
+    target: ExpressionDefinition | undefined,
+    ev: ExpressionEvaluation | null,
+    shapes: BlendshapeMap,
+    present: boolean,
+  ): void {
+    if (!present || !targetId || !target || !ev) return;
+    const interval = config.faceSession.scoreLogIntervalMs;
+    const reason = formatExpressionGateReason(shapes, target, ev);
+    // Bucket score so tiny float jitter does not spam the log.
+    const key = `${targetId}|${ev.status}|${reason}|${Math.round(ev.score * 20)}`;
+    if (key === this.lastScoreLogKey && now - this.lastScoreLogAt < interval) return;
+    this.lastScoreLogAt = now;
+    this.lastScoreLogKey = key;
+    const top = topBlendshapes(shapes, 3)
+      .map((b) => `${b.name}=${b.score.toFixed(2)}`)
+      .join(',');
+    diagLog.push('expr', ev.status === 'pass' ? 'expression pass' : 'expression short', {
+      target: targetId,
+      score: ev.score,
+      need: 1,
+      status: ev.status,
+      reason,
+      top,
+    });
   }
 
     /** @returns true when the lost banner was set for prolonged no-face during search. */
@@ -594,8 +711,8 @@ export class FaceApp {
           minCutoff: 0,
           beta: 0,
           dCutoff: 0,
-          enterFrames: config.debounce.enterFrames,
-          leaveFrames: config.debounce.leaveFrames,
+          enterFrames: config.faceSession.enterFrames,
+          leaveFrames: config.faceSession.leaveFrames,
           trackLostEvents: st.lostEvents,
           trackLostMs: st.lostMsTotal + st.currentLostMs,
           trackedRatio: st.frames ? st.trackedFrames / st.frames : 0,

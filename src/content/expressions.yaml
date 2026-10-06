@@ -15,54 +15,61 @@
 #   - eyes_closed uses eyeBlink*; partial blinks may score as unknown until debounced.
 #   - surprise combines browInnerUp + jawOpen + eyeWide (all must pass).
 #   - No emotion classifier: these are geometric blendshape gates only.
-# Thresholds are intentionally a bit lenient for webcam lighting / mild expressions.
+# Thresholds are LOOSE for mobile selfie cams (soft lighting, mild expressions, asymmetry).
 
 expressions:
   - id: neutral
     rules:
-      - { id: smile_low, type: blendshape, name: mouthSmileLeft, max: 0.28 }
-      - { id: smile_low_r, type: blendshape, name: mouthSmileRight, max: 0.28 }
-      - { id: frown_low, type: blendshape, name: mouthFrownLeft, max: 0.3 }
-      - { id: frown_low_r, type: blendshape, name: mouthFrownRight, max: 0.3 }
-      - { id: jaw_closed, type: blendshape, name: jawOpen, max: 0.22 }
-      - { id: brow_calm, type: blendshape, name: browInnerUp, max: 0.4 }
-      - { id: eyes_open_l, type: blendshape, name: eyeBlinkLeft, max: 0.5 }
-      - { id: eyes_open_r, type: blendshape, name: eyeBlinkRight, max: 0.5 }
-      - { id: tongue_in, type: blendshape, name: tongueOut, max: 0.25 }
+      - { id: smile_low, type: blendshape, name: mouthSmileLeft, max: 0.42 }
+      - { id: smile_low_r, type: blendshape, name: mouthSmileRight, max: 0.42 }
+      - { id: frown_low, type: blendshape, name: mouthFrownLeft, max: 0.42 }
+      - { id: frown_low_r, type: blendshape, name: mouthFrownRight, max: 0.42 }
+      - { id: jaw_closed, type: blendshape, name: jawOpen, max: 0.32 }
+      - { id: brow_calm, type: blendshape, name: browInnerUp, max: 0.5 }
+      - { id: eyes_open_l, type: blendshape, name: eyeBlinkLeft, max: 0.55 }
+      - { id: eyes_open_r, type: blendshape, name: eyeBlinkRight, max: 0.55 }
+      - { id: tongue_in, type: blendshape, name: tongueOut, max: 0.35 }
 
   - id: smile
     rules:
-      - { id: smile_left, type: blendshape, name: mouthSmileLeft, min: 0.3 }
-      - { id: smile_right, type: blendshape, name: mouthSmileRight, min: 0.3 }
-      - { id: not_frowning, type: blendshape, name: mouthFrownLeft, max: 0.4 }
+      # either side is enough on mobile (asymmetric smiles are common)
+      - id: smile_either
+        type: any_of
+        rules:
+          - { id: smile_left, type: blendshape, name: mouthSmileLeft, min: 0.12 }
+          - { id: smile_right, type: blendshape, name: mouthSmileRight, min: 0.12 }
+      - { id: not_frowning, type: blendshape, name: mouthFrownLeft, max: 0.5 }
 
   - id: frown
     rules:
-      - { id: frown_left, type: blendshape, name: mouthFrownLeft, min: 0.28 }
-      - { id: frown_right, type: blendshape, name: mouthFrownRight, min: 0.28 }
-      - { id: not_smiling, type: blendshape, name: mouthSmileLeft, max: 0.4 }
+      - id: frown_either
+        type: any_of
+        rules:
+          - { id: frown_left, type: blendshape, name: mouthFrownLeft, min: 0.1 }
+          - { id: frown_right, type: blendshape, name: mouthFrownRight, min: 0.1 }
+      - { id: not_smiling, type: blendshape, name: mouthSmileLeft, max: 0.5 }
 
   - id: surprise
     rules:
-      - { id: brows_up, type: blendshape, name: browInnerUp, min: 0.28 }
-      - { id: mouth_ajar, type: blendshape, name: jawOpen, min: 0.2 }
+      - { id: brows_up, type: blendshape, name: browInnerUp, min: 0.12 }
+      - { id: mouth_ajar, type: blendshape, name: jawOpen, min: 0.08 }
       - id: eyes_wide
         type: any_of
         rules:
-          - { id: eye_wide_l, type: blendshape, name: eyeWideLeft, min: 0.2 }
-          - { id: eye_wide_r, type: blendshape, name: eyeWideRight, min: 0.2 }
+          - { id: eye_wide_l, type: blendshape, name: eyeWideLeft, min: 0.08 }
+          - { id: eye_wide_r, type: blendshape, name: eyeWideRight, min: 0.08 }
 
   - id: mouth_open
     rules:
-      - { id: jaw_open, type: blendshape, name: jawOpen, min: 0.32 }
-      - { id: not_tongue, type: blendshape, name: tongueOut, max: 0.5 }
+      - { id: jaw_open, type: blendshape, name: jawOpen, min: 0.15 }
+      - { id: not_tongue, type: blendshape, name: tongueOut, max: 0.65 }
 
   - id: eyes_closed
     rules:
-      - { id: blink_left, type: blendshape, name: eyeBlinkLeft, min: 0.45 }
-      - { id: blink_right, type: blendshape, name: eyeBlinkRight, min: 0.45 }
+      - { id: blink_left, type: blendshape, name: eyeBlinkLeft, min: 0.22 }
+      - { id: blink_right, type: blendshape, name: eyeBlinkRight, min: 0.22 }
 
   - id: tongue_out
     rules:
-      - { id: tongue, type: blendshape, name: tongueOut, min: 0.18 }
-      - { id: jaw_for_tongue, type: blendshape, name: jawOpen, min: 0.12 }
+      - { id: tongue, type: blendshape, name: tongueOut, min: 0.06 }
+      - { id: jaw_for_tongue, type: blendshape, name: jawOpen, min: 0.04 }

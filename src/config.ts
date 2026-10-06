@@ -34,6 +34,22 @@ export interface AppConfig {
     minTrackingConfidence: number;
     numFaces: number;
   };
+  /**
+   * Session timing overrides for ?mode=face (mobile-friendly).
+   * Shorter holds + lower enter/leave N so mild expressions can register.
+   */
+  faceSession: {
+    enterFrames: number;
+    leaveFrames: number;
+    holdMinMs: number;
+    holdMaxMs: number;
+    personDetectFrames: number;
+    enterTimeoutMs: number;
+    commandAnnounceMs: number;
+    resultShowMs: number;
+    /** DiagLog throttle for expression score lines (ms). */
+    scoreLogIntervalMs: number;
+  };
   filter: { minCutoff: number; beta: number; dCutoff: number };
   debounce: { enterFrames: number; leaveFrames: number };
   tracking: {
@@ -126,6 +142,18 @@ export const config: AppConfig = {
     minFacePresenceConfidence: 0.3,
     minTrackingConfidence: 0.3,
     numFaces: 1,
+  },
+  faceSession: {
+    // Pose defaults are enter=10 / leave=15 / hold 5–15s — too sticky for faces.
+    enterFrames: 4,
+    leaveFrames: 6,
+    holdMinMs: 2_000,
+    holdMaxMs: 4_500,
+    personDetectFrames: 6,
+    enterTimeoutMs: 12_000,
+    commandAnnounceMs: 1_400,
+    resultShowMs: 2_200,
+    scoreLogIntervalMs: 500,
   },
   filter: { minCutoff: 1.2, beta: 0.05, dCutoff: 1.0 },
   debounce: { enterFrames: 10, leaveFrames: 15 },

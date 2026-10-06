@@ -64,6 +64,8 @@ Standalone mode (not mixed into the default pose session). Entry: lobby button *
 * Uses MediaPipe **Face Landmarker** + 52 ARKit-style **blendshapes** (`public/models/face_landmarker.task`), same offline `public/` + CSP policy as pose models (PeerJS exceptions unchanged; face mode is local-only).
 * Configurable catalogue: `src/content/expressions.yaml` (ids + rules only). Copy in `src/content/i18n/{zh-CN,en}.yaml` under `expressions.*` / `face.*`.
 * Included expressions: **neutral, smile, frown, surprise, mouth_open, eyes_closed, tongue_out**. Limits: `tongue_out` is often weak on webcams; frown vs soft neutral can blur; no emotion classifier — blendshape gates only.
+* **Mobile-loosened** blendshape thresholds + face-only session timings (`config.faceSession`: enter N=4 / leave M=6, hold ~2–4.5 s). Smile/frown accept **either** mouth side.
+* Always-on face debug strip distinguishes **已检测到脸** vs **表情未达标**, shows live top blendshapes + score vs 100% need, mirror/portrait badge for selfie cams (e.g. 720×1280). Throttled `DiagLog` lines on expression score / pass-fail reasons (Copy logs).
 * Same lab aesthetic: Start + Safeword, command HUD, **match confidence**, hold progress, round report, console JSON metrics (`mode: 1` tags face rounds; expression index in `attempts[].pose`).
 * Pure scoring + debounce covered by `tests/expressionRules.test.ts`.
 
