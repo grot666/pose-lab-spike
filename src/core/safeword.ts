@@ -9,7 +9,7 @@
  *                   subscribes and performs the hard stop (loop + camera off).
  *
  * The spike ships ButtonSafewordSource and ExternalSafewordSource
-* (remote peer / room sync).
+ * (remote peer / room sync).
  */
 
 export type SafewordSourceKind = 'button' | 'keyboard' | 'voice' | 'gesture' | 'external';
