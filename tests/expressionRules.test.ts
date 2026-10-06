@@ -9,6 +9,8 @@ import {
   evaluateExpression,
   evaluateRule,
   firstFailingRule,
+  formatExpressionGateReason,
+  topBlendshapes,
   type BlendshapeMap,
   type ExpressionRule,
 } from '../src/core/expressionRules';
@@ -42,30 +44,30 @@ describe('expressions.yaml', () => {
 });
 
 describe('blendshape scoring', () => {
-  it('smile passes when both smile blendshapes are high', () => {
+  it('smile passes when either smile blendshape is high', () => {
     const ev = evaluateExpression(
-      shapes({ mouthSmileLeft: 0.7, mouthSmileRight: 0.65, mouthFrownLeft: 0.05 }),
+      shapes({ mouthSmileLeft: 0.7, mouthSmileRight: 0.05, mouthFrownLeft: 0.05 }),
       byId.smile,
     );
     expect(ev.status).toBe('pass');
     expect(ev.score).toBe(1);
   });
 
-  it('smile passes at loosened webcam-friendly threshold (~0.3)', () => {
+  it('smile passes at loosened mobile-friendly threshold (~0.12 either side)', () => {
     const ev = evaluateExpression(
-      shapes({ mouthSmileLeft: 0.32, mouthSmileRight: 0.31, mouthFrownLeft: 0.05 }),
+      shapes({ mouthSmileLeft: 0.13, mouthSmileRight: 0.02, mouthFrownLeft: 0.05 }),
       byId.smile,
     );
     expect(ev.status).toBe('pass');
   });
 
-  it('smile fails when smile is too weak', () => {
+  it('smile fails when both sides are too weak', () => {
     const ev = evaluateExpression(
-      shapes({ mouthSmileLeft: 0.1, mouthSmileRight: 0.1, mouthFrownLeft: 0.05 }),
+      shapes({ mouthSmileLeft: 0.05, mouthSmileRight: 0.05, mouthFrownLeft: 0.05 }),
       byId.smile,
     );
     expect(ev.status).toBe('fail');
-    expect(firstFailingRule(ev)).toBe('smile_left');
+    expect(firstFailingRule(ev)).toBe('smile_either');
   });
 
   it('missing blendshapes yield unknown (not fail)', () => {
@@ -75,14 +77,16 @@ describe('blendshape scoring', () => {
     expect(ev.score).toBe(0);
   });
 
-  it('mouth_open requires jawOpen above threshold', () => {
+  it('mouth_open requires jawOpen above loosened threshold', () => {
     expect(evaluateExpression(shapes({ jawOpen: 0.55, tongueOut: 0.05 }), byId.mouth_open).status).toBe('pass');
-    expect(evaluateExpression(shapes({ jawOpen: 0.2, tongueOut: 0.05 }), byId.mouth_open).status).toBe('fail');
+    expect(evaluateExpression(shapes({ jawOpen: 0.16, tongueOut: 0.05 }), byId.mouth_open).status).toBe('pass');
+    expect(evaluateExpression(shapes({ jawOpen: 0.08, tongueOut: 0.05 }), byId.mouth_open).status).toBe('fail');
   });
 
-  it('eyes_closed needs both blinks', () => {
+  it('eyes_closed needs both blinks (mobile-loosened)', () => {
     expect(evaluateExpression(shapes({ eyeBlinkLeft: 0.8, eyeBlinkRight: 0.8 }), byId.eyes_closed).status).toBe('pass');
-    expect(evaluateExpression(shapes({ eyeBlinkLeft: 0.8, eyeBlinkRight: 0.2 }), byId.eyes_closed).status).toBe('fail');
+    expect(evaluateExpression(shapes({ eyeBlinkLeft: 0.25, eyeBlinkRight: 0.25 }), byId.eyes_closed).status).toBe('pass');
+    expect(evaluateExpression(shapes({ eyeBlinkLeft: 0.8, eyeBlinkRight: 0.1 }), byId.eyes_closed).status).toBe('fail');
   });
 
   it('surprise any_of eyes_wide passes with one side', () => {
@@ -161,8 +165,31 @@ describe('scoring + debounce integration', () => {
 describe('collectExpressionRuleIds', () => {
   it('returns top-level rule ids used for hint coverage', () => {
     const ids = collectExpressionRuleIds(defs);
-    expect(ids).toContain('smile_left');
+    expect(ids).toContain('smile_either');
+    expect(ids).toContain('frown_either');
     expect(ids).toContain('eyes_wide'); // any_of parent, not nested eye_wide_l when topLevelOnly
     expect(ids).not.toContain('eye_wide_l');
+    expect(ids).not.toContain('smile_left');
+  });
+});
+
+describe('topBlendshapes + formatExpressionGateReason', () => {
+  it('ranks blendshapes by score', () => {
+    const top = topBlendshapes({ jawOpen: 0.2, mouthSmileLeft: 0.9, _neutral: 0.01 }, 2);
+    expect(top.map((t) => t.name)).toEqual(['mouthSmileLeft', 'jawOpen']);
+  });
+
+  it('formats fail reasons with value vs threshold', () => {
+    const shapes = { mouthSmileLeft: 0.05, mouthSmileRight: 0.04, mouthFrownLeft: 0.05 };
+    const ev = evaluateExpression(shapes, byId.smile);
+    expect(ev.status).toBe('fail');
+    const reason = formatExpressionGateReason(shapes, byId.smile, ev);
+    expect(reason).toMatch(/smile_left=0\.05<0\.12|smile_right=0\.04<0\.12/);
+  });
+
+  it('formats pass as pass', () => {
+    const shapes = { mouthSmileLeft: 0.4, mouthSmileRight: 0.1, mouthFrownLeft: 0.05 };
+    const ev = evaluateExpression(shapes, byId.smile);
+    expect(formatExpressionGateReason(shapes, byId.smile, ev)).toBe('pass');
   });
 });

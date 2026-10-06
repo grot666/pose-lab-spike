@@ -139,3 +139,82 @@ export function blendshapesFromCategories(
   }
   return out;
 }
+
+/** Top-N blendshapes by score (descending). Skips empty names / non-finite. */
+export function topBlendshapes(
+  shapes: BlendshapeMap,
+  n = 5,
+): Array<{ name: string; score: number }> {
+  return Object.entries(shapes)
+    .filter(([name, score]) => !!name && Number.isFinite(score))
+    .map(([name, score]) => ({ name, score: score as number }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(0, n));
+}
+
+export interface BlendshapeGateDetail {
+  id: string;
+  name: string;
+  value: number;
+  min?: number;
+  max?: number;
+  status: RuleStatus;
+}
+
+/** Flatten blendshape leaf rules with measured values (for HUD / DiagLog). */
+export function collectBlendshapeDetails(
+  shapes: BlendshapeMap,
+  rules: ExpressionRule[],
+): BlendshapeGateDetail[] {
+  const out: BlendshapeGateDetail[] = [];
+  const walk = (rule: ExpressionRule): void => {
+    if (rule.type === 'blendshape') {
+      const r = evaluateRule(shapes, rule);
+      out.push({
+        id: rule.id,
+        name: rule.name,
+        value: r.value,
+        min: rule.min,
+        max: rule.max,
+        status: r.status,
+      });
+      return;
+    }
+    if (rule.type === 'not') {
+      walk(rule.rule);
+      return;
+    }
+    for (const child of rule.rules) walk(child);
+  };
+  for (const r of rules) walk(r);
+  return out;
+}
+
+/** Compact pass/fail reason for DiagLog / HUD (e.g. smile_left=0.08<0.12). */
+export function formatExpressionGateReason(
+  shapes: BlendshapeMap,
+  def: ExpressionDefinition,
+  ev: ExpressionEvaluation,
+): string {
+  if (ev.status === 'pass') return 'pass';
+  if (ev.status === 'unknown' && ev.failCount === 0) return 'unknown(missing blendshapes)';
+  const details = collectBlendshapeDetails(shapes, def.rules);
+  const failing = details.filter((d) => d.status === 'fail');
+  if (!failing.length) {
+    const topFail = firstFailingRule(ev);
+    return topFail ? `fail:${topFail}` : `fail score=${ev.score.toFixed(2)}`;
+  }
+  return failing
+    .slice(0, 4)
+    .map((d) => {
+      const v = Number.isFinite(d.value) ? d.value.toFixed(2) : '?';
+      if (d.min !== undefined && Number.isFinite(d.value) && d.value < d.min) {
+        return `${d.id}=${v}<${d.min}`;
+      }
+      if (d.max !== undefined && Number.isFinite(d.value) && d.value > d.max) {
+        return `${d.id}=${v}>${d.max}`;
+      }
+      return `${d.id}=${v}`;
+    })
+    .join(' ');
+}

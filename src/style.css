@@ -819,3 +819,23 @@ body[data-mode="face"] .face-debug.hidden {
   max-height: min(42vh, 420px);
   overflow: auto;
 }
+
+.mirror-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  padding: 4px 8px;
+  border: 1px solid rgba(120, 220, 255, 0.35);
+  border-radius: 4px;
+  background: rgba(4, 10, 18, 0.75);
+  color: #9fdcff;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+.mirror-badge.hidden { display: none; }
+.face-debug.ok { border-color: rgba(120, 255, 180, 0.45); color: #b8ffd4; }
+.face-debug.warn { border-color: rgba(255, 200, 100, 0.5); color: #ffe0a0; }
+.face-debug.bad { border-color: rgba(255, 120, 120, 0.45); color: #ffc0c0; }

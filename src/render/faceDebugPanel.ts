@@ -16,6 +16,12 @@ export interface FaceDebugSnapshot {
   wasmDir: string | null;
   present: boolean;
   phase: string;
+  targetId: string | null;
+  exprStatus: string | null;
+  exprScore: number | null;
+  exprReason: string | null;
+  topShapes: string;
+  mirrored: boolean;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -94,6 +100,12 @@ export class FaceDebugPanel {
         this.field('phase', this.t('face_phase')),
         this.field('faces', this.t('face_count')),
         this.field('presence', this.t('face_presence')),
+        this.field('face_gate', this.t('face_gate')),
+        this.field('expr_target', this.t('expr_target')),
+        this.field('expr_score', this.t('expr_score')),
+        this.field('expr_reason', this.t('expr_reason')),
+        this.field('top_shapes', this.t('top_shapes')),
+        this.field('mirror', this.t('mirror')),
         this.field('video', this.t('video_dims')),
         this.field('ready', this.t('ready_state')),
         this.field('skip', this.t('skip_reason')),
@@ -140,6 +152,23 @@ export class FaceDebugPanel {
     f.phase.textContent = s.phase;
     f.faces.textContent = String(d.faceCount);
     f.presence.textContent = s.present ? '1' : String(d.presenceScore);
+    f.face_gate.textContent = !s.present
+      ? this.i18n.t('face.hud_no_face')
+      : s.exprStatus === 'pass'
+        ? this.i18n.t('face.hud_expr_pass')
+        : s.targetId
+          ? this.i18n.t('face.hud_expr_fail')
+          : this.i18n.t('face.hud_face_ok');
+    f.expr_target.textContent = s.targetId ?? '—';
+    f.expr_score.textContent =
+      s.exprScore === null || !Number.isFinite(s.exprScore)
+        ? '—'
+        : `${Math.round(s.exprScore * 100)}% / 100% (${s.exprStatus ?? '—'})`;
+    f.expr_reason.textContent = s.exprReason ?? '—';
+    f.top_shapes.textContent = s.topShapes || '—';
+    f.mirror.textContent = s.mirrored
+      ? this.i18n.t('face.mirror_label', { w: d.videoWidth, h: d.videoHeight })
+      : this.i18n.t('face.mirror_off', { w: d.videoWidth, h: d.videoHeight });
     f.video.textContent = `${d.videoWidth}×${d.videoHeight}`;
     f.ready.textContent = String(d.readyState);
     f.skip.textContent = d.skipReason ?? '—';
