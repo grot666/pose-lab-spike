@@ -25,7 +25,7 @@ export interface AppConfig {
     minPosePresenceConfidence: number;
     minTrackingConfidence: number;
   };
-  /** Face Landmarker (expression mode, ?mode=face). Same offline public/ pattern. */
+  /** Face Landmarker (expression ?mode=face and avatar ?mode=avatar). Same offline public/ pattern. */
   face: {
     modelPath: string;
     preferGpu: boolean;

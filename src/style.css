@@ -839,3 +839,39 @@ body[data-mode="face"] .face-debug.hidden {
 .face-debug.ok { border-color: rgba(120, 255, 180, 0.45); color: #b8ffd4; }
 .face-debug.warn { border-color: rgba(255, 200, 100, 0.5); color: #ffe0a0; }
 .face-debug.bad { border-color: rgba(255, 120, 120, 0.45); color: #ffc0c0; }
+
+
+/* VTuber avatar skin mode (?mode=avatar) */
+body[data-mode="avatar"] #lobby,
+body[data-mode="avatar"] #room-entry,
+body[data-mode="avatar"] #face-entry {
+  display: none !important;
+}
+body[data-mode="avatar"] #avatar-entry {
+  display: block !important;
+}
+body[data-mode="avatar"] #avatar-entry.hidden {
+  display: block !important;
+}
+#avatar-back-link {
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+body[data-mode="avatar"] .face-debug.hidden {
+  display: none;
+}
+/* Live avatar: suppress pose session HUD chrome */
+body[data-mode="avatar"] #command,
+body[data-mode="avatar"] #instruction,
+body[data-mode="avatar"] #countdown,
+body[data-mode="avatar"] #hold-bar,
+body[data-mode="avatar"] #confidence,
+body[data-mode="avatar"] #round-info {
+  display: none !important;
+}
+body[data-mode="avatar"] .panel.lab .hud {
+  justify-content: flex-end;
+}

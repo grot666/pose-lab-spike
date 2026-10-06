@@ -308,6 +308,24 @@ face:
     track_regained:
       - "重新捕获。继续。"
 
+avatar:
+  entry: "虚拟皮套（VTuber）"
+  subtitle: "实时虚拟皮套 · 面部驱动"
+  note: "独立实时模式：Face Landmarker 驱动风格化 VTuber 皮套（头部跟踪、口型同步、眼部/表情）。不是表情测试关卡。本地运行，模型不联网。"
+  start: "开始直播驱动"
+  back_pose: "返回姿态模式"
+  phase_live: "直播中"
+  hud_driving: "皮套驱动中"
+  hud_morphs: "形态 笑:{smile} 颌:{jaw} 眨眼:{blink} 眉:{brow}"
+  hud_pose: "头 yaw:{yaw}° pitch:{pitch}° roll:{roll}°"
+  status:
+    idle:
+      - "皮套舱待机。准备好驱动时，按下开始直播驱动。"
+    live:
+      - "已开播。面向传感器——皮套跟随你。"
+    tracking:
+      - "面部锁定。口型、眼睛与头部正在同步到皮套。"
+
 expressions:
   neutral:
     name: "平静"

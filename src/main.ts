@@ -5,6 +5,7 @@ import zhCN from './content/i18n/zh-CN.yaml';
 import en from './content/i18n/en.yaml';
 import { App } from './app';
 import { FaceApp } from './faceApp';
+import { AvatarApp } from './avatarApp';
 import { config, type Lang } from './config';
 import { I18n, resolveLang, type Dict } from './core/i18n';
 import { parseExpressionLibrary } from './core/expressionLibrary';
@@ -15,15 +16,33 @@ const i18n = new I18n<Lang>({ 'zh-CN': zhCN as Dict, en: en as Dict }, resolveLa
 
 const mode = new URLSearchParams(location.search).get('mode');
 const faceMode = mode === 'face';
+const avatarMode = mode === 'avatar';
 
-if (faceMode) {
+function wireModeBack(id: string): void {
+  const back = document.getElementById(id) as HTMLAnchorElement | null;
+  if (!back) return;
+  const u = new URL(location.href);
+  u.searchParams.delete('mode');
+  back.href = u.toString();
+}
+
+function wireI18nHmr(): void {
+  if (!import.meta.hot) return;
+  import.meta.hot.accept('./content/i18n/zh-CN.yaml', (mod) => {
+    if (mod) i18n.setDict('zh-CN', mod.default as Dict);
+  });
+  import.meta.hot.accept('./content/i18n/en.yaml', (mod) => {
+    if (mod) i18n.setDict('en', mod.default as Dict);
+  });
+}
+
+if (avatarMode) {
+  wireModeBack('avatar-back-link');
+  new AvatarApp(i18n);
+  wireI18nHmr();
+} else if (faceMode) {
   // Wire back link (preserve lang / other params except mode)
-  const back = document.getElementById('face-back-link') as HTMLAnchorElement | null;
-  if (back) {
-    const u = new URL(location.href);
-    u.searchParams.delete('mode');
-    back.href = u.toString();
-  }
+  wireModeBack('face-back-link');
   const faceApp = new FaceApp(parseExpressionLibrary(expressionsRaw), i18n);
   if (import.meta.hot) {
     import.meta.hot.accept('./content/expressions.yaml', (mod) => {
@@ -34,13 +53,8 @@ if (faceMode) {
         console.error('[pose-lab] expressions.yaml rejected, keeping previous version:', (err as Error).message);
       }
     });
-    import.meta.hot.accept('./content/i18n/zh-CN.yaml', (mod) => {
-      if (mod) i18n.setDict('zh-CN', mod.default as Dict);
-    });
-    import.meta.hot.accept('./content/i18n/en.yaml', (mod) => {
-      if (mod) i18n.setDict('en', mod.default as Dict);
-    });
   }
+  wireI18nHmr();
 } else {
   const app = new App(parsePoseLibrary(posesRaw), i18n);
   if (import.meta.hot) {
