@@ -65,7 +65,7 @@ export interface AppConfig {
   ui: {
     /** Debug panel refresh rate (Hz) - DOM updates are throttled. */
     debugHz: number;
-    /** Show debug panel expanded on load. Also ?debug=1. */
+    /** Show debug panel expanded on load (default on). ?debug=0 closes; ?debug=1 forces open. */
     debugOpen: boolean;
   };
   audio: {
@@ -145,7 +145,7 @@ export const config: AppConfig = {
     commandAnnounceMs: 1_800,
     resultShowMs: 2_600,
   },
-  ui: { debugHz: 6, debugOpen: false },
+  ui: { debugHz: 6, debugOpen: true },
   audio: {
     enabled: true,
     defaultVolume: 0.6,

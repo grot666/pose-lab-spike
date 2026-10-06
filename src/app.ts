@@ -15,6 +15,8 @@ import { LAB_CUE, LAB_CUES } from './audio/labCues';
 import { WebAudioBackend } from './audio/webAudioBackend';
 import { assetUrl } from './core/assetUrl';
 import { config, type FacingMode, type Lang, type ModelTier } from './config';
+import { buildLabel } from './core/buildInfo';
+import { diagLog } from './core/diagLog';
 import { computeAllAngles, headPitch, torsoTilt } from './core/geometry';
 import type { I18n } from './core/i18n';
 import { JitterMeter } from './core/jitter';
@@ -139,7 +141,11 @@ export class App {
       audioVolume: prefs.volume,
     };
     const dbgRoot = $('#debug') as HTMLDetailsElement;
-    dbgRoot.open = config.ui.debugOpen || q.get('debug') === '1';
+    const debugParam = q.get('debug');
+    dbgRoot.open = debugParam === '0' ? false : config.ui.debugOpen || debugParam === '1';
+    const buildBadge = document.getElementById('build-badge');
+    if (buildBadge) buildBadge.textContent = buildLabel();
+    diagLog.push('app', 'pose mode boot', { version: buildLabel(), debugOpen: dbgRoot.open ? 1 : 0 });
     this.debug = new DebugPanel(dbgRoot, i18n, settings, {
       onTier: (t) => void this.switchTier(t),
       onFacing: (f) => void this.switchFacing(f),

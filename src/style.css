@@ -770,3 +770,52 @@ body[data-mode="face"] #face-entry.hidden {
 body[data-mode="face"] .face-debug.hidden {
   display: none;
 }
+
+.badge.build {
+  color: var(--accent);
+  border-color: rgba(159, 220, 255, 0.35);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.dbg-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.dbg-copy-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid rgba(120, 220, 255, 0.45);
+  border-radius: 3px;
+  background: rgba(20, 40, 60, 0.9);
+  color: var(--accent);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.dbg-copy-btn:hover {
+  background: rgba(40, 70, 100, 0.95);
+}
+.dbg-copy-status {
+  font-size: 11px;
+}
+.dbg-log {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #9fdcff;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.face-debug-body {
+  max-height: min(42vh, 420px);
+  overflow: auto;
+}

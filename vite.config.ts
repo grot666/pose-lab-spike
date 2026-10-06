@@ -1,7 +1,20 @@
 /// <reference types="vitest/config" />
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { parse } from 'yaml';
+
+function shortGitSha(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim() || 'unknown';
+  } catch {
+    return process.env.GITHUB_SHA?.slice(0, 7) || 'unknown';
+  }
+}
+
+const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version as string;
+const gitSha = shortGitSha();
 
 /**
  * Minimal YAML loader: `import data from './x.yaml'` -> parsed object.
@@ -38,6 +51,10 @@ const base = process.env.BASE_PATH || './';
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(pkgVersion),
+    __GIT_SHA__: JSON.stringify(gitSha),
+  },
   plugins: [yamlPlugin(), ...(isTest ? [] : [basicSsl()])],
   server: {
     host: '0.0.0.0',
