@@ -73,6 +73,20 @@ export interface AppConfig {
     /** Fade on safeword - short, but avoids a click. */
     safewordFadeMs: number;
   };
+  /**
+   * Multi-device room sync (PeerJS cloud broker). Single-device mode ignores this.
+   * CSP must allow connect-src to peerHost (see index.html).
+   */
+  room: {
+    peerHost: string;
+    peerPort: number;
+    peerPath: string;
+    peerSecure: boolean;
+    /** Max landmark send rate from camera (Hz). */
+    landmarkHz: number;
+    /** Max session-snapshot send rate from camera (Hz). */
+    sessionHz: number;
+  };
 }
 
 export const config: AppConfig = {
@@ -120,5 +134,13 @@ export const config: AppConfig = {
     ambienceFadeInMs: 2500,
     ambienceFadeOutMs: 1500,
     safewordFadeMs: 200,
+  },
+  room: {
+    peerHost: '0.peerjs.com',
+    peerPort: 443,
+    peerPath: '/',
+    peerSecure: true,
+    landmarkHz: 20,
+    sessionHz: 10,
   },
 };

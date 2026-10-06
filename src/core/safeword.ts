@@ -8,7 +8,8 @@
  *                   listeners exactly once and disarms every source. The app
  *                   subscribes and performs the hard stop (loop + camera off).
  *
- * The spike ships ButtonSafewordSource only.
+ * The spike ships ButtonSafewordSource and ExternalSafewordSource
+* (remote peer / room sync).
  */
 
 export type SafewordSourceKind = 'button' | 'keyboard' | 'voice' | 'gesture' | 'external';
@@ -138,5 +139,33 @@ export class ButtonSafewordSource implements SafewordSource {
     this.trigger = null;
     this.button.removeEventListener('pointerdown', this.onPress);
     this.button.removeEventListener('click', this.onPress);
+  }
+}
+
+
+/**
+ * Programmatic source for remote peers (room sync). Call `fire()` when the
+ * other device sends a safeword message; the controller still latches once.
+ */
+export class ExternalSafewordSource implements SafewordSource {
+  readonly kind = 'external' as const;
+  private triggerFn: SafewordTrigger | null = null;
+
+  constructor(
+    readonly id = 'remote-peer',
+    private now: () => number = () => performance.now(),
+  ) {}
+
+  attach(trigger: SafewordTrigger): void {
+    this.triggerFn = trigger;
+  }
+
+  detach(): void {
+    this.triggerFn = null;
+  }
+
+  /** Raise the safeword if currently attached (armed). */
+  fire(sourceId = this.id, at = this.now()): void {
+    this.triggerFn?.({ sourceId, kind: this.kind, at });
   }
 }

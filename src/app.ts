@@ -2,6 +2,9 @@
  * Orchestrator: wires adapters (camera, MediaPipe, wake lock) -> core
  * (tracking, smoothing, rules, debounce, session, metrics, safeword) -> render
  * (2D skeleton, three.js lab, HUD, debug panel) + audio bank (ambience + UI cues).
+ *
+ * Modes: local (default), camera (phone host + PeerJS broadcast), viewer (desktop
+ * receives landmarks + session; no MediaPipe). Room via ?role=&room= or lobby UI.
  */
 import { CameraAdapter } from './adapters/camera';
 import { MediaPipePoseDetector, type PoseDetector } from './adapters/mediapipePose';
@@ -18,18 +21,25 @@ import { CORE_JOINTS, J, type PoseFrame } from './core/landmarks';
 import { FpsMeter, RollingStat, buildRoundReport } from './core/metrics';
 import { PoseSmoother } from './core/oneEuro';
 import { evaluatePose, firstFailingRule, type PoseDefinition, type PoseEvaluation } from './core/poseRules';
-import { ButtonSafewordSource, SafewordController } from './core/safeword';
+import { ButtonSafewordSource, ExternalSafewordSource, SafewordController } from './core/safeword';
+import { parseRoomParams, type RoomRole } from './core/roomCode';
+import type { RoomEventMsg, RoomSessionMsg } from './core/roomProtocol';
 import { PoseSession, type SessionEvent, type SessionSnapshot } from './core/session';
-import { TrackingMonitor, type TrackSnapshot } from './core/tracking';
+import { TrackingMonitor, type TrackSnapshot, type TrackState } from './core/tracking';
 import { DebugPanel, type DebugSettings } from './render/debugPanel';
 import { AudioToggle } from './render/audioToggle';
 import { $ } from './render/dom';
 import { Hud } from './render/hud';
 import { LabScene } from './render/labScene';
+import { Lobby } from './render/lobby';
 import { Skeleton2D } from './render/skeleton2d';
 import type { Mood } from './render/sphereAI';
+import { RoomBridge } from './sync/roomBridge';
+import type { PeerRoomState } from './adapters/peerRoom';
 
 const TIERS: ModelTier[] = ['lite', 'full', 'heavy'];
+
+export type AppMode = 'local' | 'camera' | 'viewer';
 
 /** Cue src (relative to BASE_URL, served from public/) -> same-origin URL. */
 function assetUrl(path: string): string {
@@ -60,6 +70,13 @@ export class App {
   private readonly skeleton: Skeleton2D;
   private readonly audio: AudioBank;
   private readonly audioToggle: AudioToggle;
+  private readonly lobby: Lobby;
+  private readonly mode: AppMode;
+  private readonly roomCode: string | null;
+  private room: RoomBridge | null = null;
+  private readonly remoteSafeword = new ExternalSafewordSource('remote-peer');
+  private lastHint: string | null = null;
+  private remoteStatusKey = '';
 
   private running = false;
   private busy: string | null = null;
@@ -83,6 +100,9 @@ export class App {
     this.poses = poses;
     this.indexPoses();
     const q = new URLSearchParams(location.search);
+    const roomParams = parseRoomParams(location.search);
+    this.mode = roomParams?.role ?? 'local';
+    this.roomCode = roomParams?.room ?? null;
     const tierParam = q.get('tier') as ModelTier | null;
     const tier = tierParam && TIERS.includes(tierParam) ? tierParam : config.model.defaultTier;
     const sequence = q.get('seq') === 'sequential' ? 'sequential' : q.get('seq') === 'random' ? 'random' : config.session.sequenceMode;
@@ -130,8 +150,8 @@ export class App {
     });
 
     // Safeword: armed from the very first moment, even before Start.
-    this.safeword = new SafewordController([new ButtonSafewordSource($('#safeword-btn'))]);
-    this.safeword.onTrigger(() => this.onSafeword());
+    this.safeword = new SafewordController([new ButtonSafewordSource($('#safeword-btn')), this.remoteSafeword]);
+    this.safeword.onTrigger((ev) => this.onSafeword(ev.sourceId === 'remote-peer'));
     this.safeword.arm();
 
     this.audioToggle = new AudioToggle($('#audio-btn') as HTMLButtonElement, i18n, () => this.toggleMute());
@@ -154,8 +174,38 @@ export class App {
     this.lab.setMood('idle');
     this.lab.start();
 
-    $('#start-btn').addEventListener('click', () => void this.start());
+    this.lobby = new Lobby(i18n, () => void this.start(), () => void this.start());
     this.i18n.onChange(() => this.onI18nChange());
+
+    if (this.mode !== 'local' && this.roomCode) {
+      this.initRoom(this.mode, this.roomCode);
+      if (this.mode === 'viewer') $('#viewer-placeholder').classList.remove('hidden');
+    }
+  }
+
+  private initRoom(role: RoomRole, code: string): void {
+    this.room = new RoomBridge(role, code, {
+      onState: (s, d) => this.onRoomState(s, d),
+      onLandmarks: (frame, track) => this.applyRemoteLandmarks(frame, track),
+      onSession: (msg, snap) => this.applyRemoteSession(msg, snap),
+      onEvent: (name) => this.applyRemoteEvent(name),
+      onRemoteSafeword: () => this.remoteSafeword.fire(),
+    });
+    this.room.start();
+    this.lobby.setStartEnabled(true);
+  }
+
+  private onRoomState(state: PeerRoomState, detail?: string): void {
+    const code = this.roomCode ?? '';
+    if (state === 'connecting') this.lobby.setStatus(this.i18n.t('room.connecting', { code }), 'info');
+    else if (state === 'waiting_peer') {
+      this.lobby.setStatus(detail === 'peer_closed' ? this.i18n.t('room.peer_lost') : this.i18n.t('room.waiting_peer', { code }), 'warn');
+    } else if (state === 'connected') this.lobby.setStatus(this.i18n.t('room.connected', { code }), 'ok');
+    else if (state === 'error') {
+      const text = detail === 'room_taken' ? this.i18n.t('room.error_taken', { code }) : this.i18n.t('room.error', { detail: detail ?? 'error' });
+      this.lobby.setStatus(text, 'err');
+      this.hud.showStartError(text);
+    } else if (state === 'closed') this.lobby.setStatus(this.i18n.t('room.peer_lost'), 'warn');
   }
 
   private subjectId(): string {
@@ -195,6 +245,7 @@ export class App {
     this.debug.build();
     this.audioToggle.render();
     this.renderLangLinks();
+    this.lobby.reapplyI18n();
     if (this.hud.statusKey) this.hud.say(this.hud.statusKey, this.poseParams());
   }
 
@@ -204,8 +255,18 @@ export class App {
     // Inside the click gesture, before any await: unlock Web Audio (autoplay policy) and start the hum.
     this.audio.unlock();
     void this.audio.loop(LAB_CUE.ambience, config.audio.ambienceFadeInMs);
+
+    if (this.mode === 'viewer') {
+      this.hud.hideStart();
+      this.running = true;
+      this.hud.say('status.idle');
+      this.scheduleViewerRender();
+      return;
+    }
+
     try {
       if (!window.isSecureContext) throw Object.assign(new Error('insecure'), { code: 'insecure' });
+      this.lobby.setStartEnabled(false);
       this.hud.setStartBusy(this.i18n.t('app.requesting_camera'));
       void this.wakeLock.request().then((ok) => {
         if (!ok && this.wakeLock.supported) console.warn(this.i18n.t('app.wake_lock_failed'));
@@ -238,6 +299,7 @@ export class App {
       const code = (err as { code?: string }).code;
       this.audio.stop(LAB_CUE.ambience, config.audio.ambienceFadeOutMs);
       this.camera.stop();
+      this.lobby.setStartEnabled(true);
       this.hud.setStartBusy(null);
       this.hud.showStartError(
         code === 'insecure'
@@ -249,8 +311,16 @@ export class App {
     }
   }
 
-  private onSafeword(): void {
+  private scheduleViewerRender(): void {
+    if (!this.running || this.mode !== 'viewer') return;
+    this.rafHandle = requestAnimationFrame(() => this.scheduleViewerRender());
+  }
+
+  private onSafeword(fromRemote = false): void {
+    if (!fromRemote) this.room?.sendSafeword('corner-button');
     this.running = false;
+    this.room?.destroy();
+    this.room = null;
     this.audio.shutdown(config.audio.safewordFadeMs);
     const v = this.video as HTMLVideoElement & { cancelVideoFrameCallback?: (h: number) => void };
     v.cancelVideoFrameCallback?.(this.vfcHandle);
@@ -401,6 +471,20 @@ export class App {
       this.lastDebugAt = now;
       this.renderDebug(track);
     }
+
+    if (this.mode === 'camera' && this.room) {
+      if (frame) this.room.sendLandmarks(frame, track.state, now);
+      this.room.sendSession(
+        snap,
+        {
+          subjectN: this.subjectN,
+          statusKey: this.hud.statusKey,
+          hint: this.lastHint,
+          resultMood: this.resultMood === 'success' || this.resultMood === 'fail' ? this.resultMood : 'idle',
+        },
+        now,
+      );
+    }
   }
 
   private moodFor(s: SessionSnapshot): Mood {
@@ -457,6 +541,7 @@ export class App {
     const current = (document.getElementById('hint-line')?.textContent ?? '') || null;
     if (hint !== current && (hint === null || now - this.hintShownAt > 1200)) {
       this.hud.setHint(hint);
+      this.lastHint = hint;
       this.hintShownAt = now;
     }
   }
@@ -469,6 +554,7 @@ export class App {
   private onSessionEvent(e: SessionEvent): void {
     switch (e.type) {
       case 'person_found':
+        this.room?.sendEvent('person_found');
         this.tracking.resetStats();
         this.fps.stat.clear();
         this.infer.clear();
@@ -481,28 +567,41 @@ export class App {
         if (e.phase === 'searching') this.say('status.searching');
         break;
       case 'command':
+        this.room?.sendEvent('command');
+        this.room?.sendSession(
+          this.session.snapshot(),
+          { subjectN: this.subjectN, statusKey: this.hud.statusKey, hint: this.lastHint, resultMood: 'idle' },
+          performance.now(),
+          true,
+        );
         void this.audio.play(LAB_CUE.command);
         break;
       case 'enter':
+        this.room?.sendEvent('enter');
         this.say('status.entered');
         break;
       case 'leave':
+        this.room?.sendEvent('leave');
         this.say('status.leave');
         break;
       case 'result':
         this.resultMood = e.outcome === 'success' ? 'success' : 'fail';
+        this.room?.sendEvent(e.outcome === 'success' ? 'result_success' : 'result_fail');
         void this.audio.play(e.outcome === 'success' ? LAB_CUE.success : LAB_CUE.fail);
         this.say(e.outcome === 'success' ? 'status.success' : 'status.fail_timeout');
         this.hud.setHint(null);
         break;
       case 'track_lost':
+        this.room?.sendEvent('track_lost');
         void this.audio.play(LAB_CUE.trackLost);
         this.say('status.track_lost');
         break;
       case 'track_regained':
+        this.room?.sendEvent('track_regained');
         this.say('status.track_regained');
         break;
       case 'round_complete': {
+        this.room?.sendEvent('round_complete');
         const st = this.tracking.stats;
         const report = buildRoundReport(e.summary, {
           fpsMean: this.fps.stat.mean,
@@ -570,5 +669,82 @@ export class App {
       target,
       audioState: `${this.audio.state}${this.audio.isLooping(LAB_CUE.ambience) ? ' · ambience' : ''}`,
     });
+  }
+
+  // ---------------------------------------------------------------- room viewer
+  private applyRemoteLandmarks(frame: PoseFrame, track: TrackState): void {
+    if (!this.running || this.mode !== 'viewer') return;
+    this.lastFrame = frame;
+    const lost = track === 'lost';
+    this.skeleton.draw(lost ? null : frame, lost);
+    this.lab.setPose(lost ? null : frame.world);
+    this.hud.setTrack(track);
+    $('#viewer-placeholder').classList.add('hidden');
+    const now = performance.now();
+    if (now - this.lastDebugAt > 1000 / config.ui.debugHz) {
+      this.lastDebugAt = now;
+      this.renderDebug({
+        state: track,
+        rawPresent: track === 'tracking' || track === 'partial',
+        wristsHidden: false,
+        wristHidden: [false, false],
+        lowerBodyHidden: false,
+        coreVisibility: 1,
+      });
+    }
+  }
+
+  private applyRemoteSession(msg: RoomSessionMsg, snap: SessionSnapshot): void {
+    if (!this.running || this.mode !== 'viewer') return;
+    this.subjectN = msg.subjectN;
+    this.i18n.globals.subjectId = this.subjectId();
+    this.hud.setSubject();
+    if (msg.resultMood === 'success' || msg.resultMood === 'fail') this.resultMood = msg.resultMood;
+    this.lab.setMood(this.moodFor(snap));
+    this.lab.setProgress(
+      snap.phase === 'holding'
+        ? snap.holdElapsedMs / Math.max(1, snap.holdTargetMs)
+        : snap.phase === 'result' && snap.lastOutcome === 'success'
+          ? 1
+          : 0,
+    );
+    this.hud.setLost(snap.paused);
+    this.hud.update(snap);
+    if (msg.statusKey && msg.statusKey !== this.remoteStatusKey) {
+      this.remoteStatusKey = msg.statusKey;
+      const poseParams: Record<string, string | number> = snap.poseId
+        ? { pose: this.i18n.t(`poses.${snap.poseId}.name`) }
+        : {};
+      this.hud.say(msg.statusKey, poseParams);
+    }
+    if (msg.hint !== this.lastHint) {
+      this.lastHint = msg.hint;
+      this.hud.setHint(msg.hint);
+    }
+  }
+
+  private applyRemoteEvent(name: RoomEventMsg['name']): void {
+    if (!this.running || this.mode !== 'viewer') return;
+    switch (name) {
+      case 'command':
+        void this.audio.play(LAB_CUE.command);
+        break;
+      case 'result_success':
+        this.resultMood = 'success';
+        void this.audio.play(LAB_CUE.success);
+        break;
+      case 'result_fail':
+        this.resultMood = 'fail';
+        void this.audio.play(LAB_CUE.fail);
+        break;
+      case 'track_lost':
+        void this.audio.play(LAB_CUE.trackLost);
+        break;
+      case 'round_complete':
+        this.audio.stop(LAB_CUE.ambience, config.audio.ambienceFadeOutMs);
+        break;
+      default:
+        break;
+    }
   }
 }

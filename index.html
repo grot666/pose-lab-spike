@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#04050a" />
     <meta name="referrer" content="no-referrer" />
-    <!-- Local-only spike: everything (code, wasm, models) is served from this origin. -->
+    <!--
+      Local-first spike + optional multi-device rooms via PeerJS cloud signaling.
+      connect-src allows same-origin + PeerJS broker (0.peerjs.com) only for room mode.
+      MediaPipe telemetry to odml.pa.googleapis.com remains blocked.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' ws: wss: data: blob:"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com ws: wss: data: blob:; "
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>POSE LAB</title>
@@ -23,6 +27,7 @@
           <span class="ai-name" data-i18n="ai.name"></span>
         </div>
         <div class="badges">
+          <span id="room-badge" class="badge room hidden"></span>
           <span id="subject-id" class="badge subject"></span>
           <span id="round-info" class="badge"></span>
           <span id="phase-badge" class="badge phase"></span>
@@ -36,6 +41,7 @@
           <div id="cam-wrap" class="cam-wrap mirrored">
             <video id="video" muted playsinline></video>
             <canvas id="overlay"></canvas>
+            <div id="viewer-placeholder" class="viewer-placeholder hidden" data-i18n="room.viewer_hint"></div>
           </div>
           <div id="lost-banner" class="lost-banner hidden"></div>
         </section>
@@ -66,7 +72,41 @@
           <h1 data-i18n="app.title"></h1>
           <p class="subtitle" data-i18n="app.subtitle"></p>
           <p class="consent" data-i18n="app.consent_note"></p>
-          <button id="start-btn" class="btn primary" type="button" data-i18n="app.start"></button>
+          <p id="room-consent" class="consent muted hidden" data-i18n="room.consent_extra"></p>
+
+          <!-- Lobby (no ?room=): create / join / single-device -->
+          <div id="lobby" class="lobby">
+            <div class="lobby-actions">
+              <button id="lobby-create" class="btn primary" type="button" data-i18n="room.create"></button>
+              <button id="lobby-join-toggle" class="btn" type="button" data-i18n="room.join"></button>
+            </div>
+            <div id="lobby-join" class="lobby-join hidden">
+              <label class="lobby-field">
+                <span data-i18n="room.code_label"></span>
+                <input id="lobby-code" type="text" maxlength="8" autocomplete="off" spellcheck="false" data-i18n-placeholder="room.code_placeholder" />
+              </label>
+              <fieldset class="lobby-roles">
+                <legend data-i18n="room.pick_role"></legend>
+                <label><input type="radio" name="lobby-role" value="camera" /> <span data-i18n="room.role_camera"></span></label>
+                <label><input type="radio" name="lobby-role" value="viewer" checked /> <span data-i18n="room.role_viewer"></span></label>
+              </fieldset>
+              <button id="lobby-join-go" class="btn primary" type="button" data-i18n="room.join_go"></button>
+            </div>
+            <p class="muted lobby-note" data-i18n="room.note"></p>
+            <hr class="lobby-sep" />
+            <button id="start-btn" class="btn" type="button" data-i18n="room.single"></button>
+          </div>
+
+          <!-- Active room entry (?role=&room=) -->
+          <div id="room-entry" class="lobby hidden">
+            <p id="room-status" class="room-status"></p>
+            <p id="room-hints" class="muted"></p>
+            <div class="lobby-actions">
+              <button id="room-start-btn" class="btn primary" type="button"></button>
+              <button id="room-copy-btn" class="btn" type="button" data-i18n="room.copy_link"></button>
+            </div>
+          </div>
+
           <p id="start-progress" class="muted"></p>
           <p id="start-error" class="error hidden"></p>
           <nav id="lang-links" class="lang-links"></nav>

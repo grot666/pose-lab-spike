@@ -1,13 +1,13 @@
 # POSE LAB — MediaPipe Pose Landmarker spike
 
-A **local-only** spike that checks whether **MediaPipe Pose Landmarker** can do real-time pose recognition in the browser: **detect → judge → visualize → measure**.
+A spike that checks whether **MediaPipe Pose Landmarker** can do real-time pose recognition in the browser: **detect → judge → visualize → measure**. Default is **single-device / local**. Optional **room-code multi-device** sync (phone camera → desktop viewer) uses PeerJS cloud signaling.
 
 The theme is an adult, consensual BDSM role-play set in a sci-fi AI lab. The "Dom" is a floating white sphere AI with no humanoid form and no speech. It talks through light (colour, pulse, orbit rings, scan beam, a hold-progress halo) and on-screen text in a cold, condescending lab voice.
 
-* No speech (no TTS), no backend. You run it locally with `npm run dev`; CI also publishes the same static build to GitHub Pages (see "CI and GitHub Pages"), which is still fully client-side. There is a quiet sci-fi lab hum plus a few UI beeps, all procedurally generated local files (see "Audio").
-* **No network at runtime.** Models (`.task`) and the WASM runtime are served from `public/`. A Content-Security-Policy blocks every off-origin request (see "Findings" below).
-* **No image or video upload or saving.** Frames go straight from the `<video>` element to the in-memory detector.
-* There's a **safeword** button in the bottom-right corner at all times. It hard-stops the loop and the camera.
+* No speech (no TTS), no account backend. You run it locally with `npm run dev`; CI also publishes the same static build to GitHub Pages (see "CI and GitHub Pages"). There is a quiet sci-fi lab hum plus a few UI beeps, all procedurally generated local files (see "Audio").
+* **Models and WASM are same-origin** (`public/`). Single-device mode needs no network at runtime. Room mode opens a WebRTC data channel via the **PeerJS cloud broker** (`0.peerjs.com`) for signaling only; landmarks travel peer-to-peer. CSP allows that signaling host (see "Multi-device rooms" and "Findings").
+* **No image or video upload or saving.** Frames go straight from the `<video>` element to the in-memory detector. Room mode shares compact landmark + session JSON with the peer who knows the room code — not raw video (landmarks-first spike).
+* There's a **safeword** button in the bottom-right corner at all times. It hard-stops the loop and the camera. In room mode, safeword on **either** device ends the session for **both**.
 
 ---
 
@@ -25,13 +25,37 @@ Requires Node 20.19+ (or 22.12+). `npm run dev` / `npm run build` first run `scr
 | Script | What it does |
 |---|---|
 | `npm run dev` | Vite dev server on **HTTPS** (`@vitejs/plugin-basic-ssl`) at **host 0.0.0.0:5173**. YAML hot reload. |
-| `npm test` | Vitest: pose rules, One Euro filter, debounce, safeword, tracking, session, i18n parity, audio bank |
+| `npm test` | Vitest: pose rules, One Euro filter, debounce, safeword, tracking, session, room code/protocol, i18n parity, audio bank |
 | `npm run build` | `tsc --noEmit` + production build into `dist/` (models and WASM included) |
 | `npm run preview` | Serves `dist/` over HTTPS on 0.0.0.0:4173 |
 | `npm run fetch-models` | One-time asset setup (see below). Add `-- --force` to re-download. |
 | `npm run gen-audio` | Re-synthesise `public/audio/*.wav` (deterministic, no deps, no network) |
 
-URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted).
+URL parameters: `?lang=en` / `?lang=zh-CN`, `?debug=1` (open the debug panel), `?tier=lite|full|heavy`, `?seq=random|sequential`, `?mute=1` (start with audio muted), `?role=camera|viewer&room=ABCD` (multi-device room; see below).
+
+### Multi-device rooms (PeerJS)
+
+Same session on two devices via a short **room code**. No accounts.
+
+| Role | Device | What it does |
+|---|---|---|
+| **camera** | Phone | Captures camera, runs MediaPipe Pose locally, owns the session timers / judging, sends landmarks + session HUD state over a PeerJS data channel. |
+| **viewer** | Desktop | Does **not** load MediaPipe. Reconstructs the 2D skeleton + 3D capsule from landmarks, shows HUD / debug. Safeword still works. |
+
+**Signaling:** [PeerJS](https://peerjs.com/) npm package (`peerjs@1.5.5`) + free cloud broker **`0.peerjs.com`** (WSS/HTTPS). Documented spike dependency — swap for a self-hosted PeerServer / PartyKit / Worker later if needed. Data channel serialization is **JSON** (no CBOR / `unsafe-eval`). Landmarks-first; optional low-res video WebRTC is out of scope for this spike (phone may still mirror `getUserMedia` locally).
+
+**How to create / join**
+
+1. Open the app (Pages or `npm run dev`) on either device.
+2. **Create room** → generates a 4-character code (e.g. `WXYZ`), opens as **camera**, and shows a **Copy viewer link** button.
+3. On the other device: **Join room**, enter the code, pick **viewer** (or open the copied `?role=viewer&room=WXYZ` link).
+4. Wait until both show **Peer linked**, then tap **Start** on each side (camera starts sensors + model; viewer starts listening).
+5. Single-device remains the default: use **Single device (local only)** when no room params are present.
+
+Direct URLs also work: `?role=camera&room=ABCD` / `?role=viewer&room=ABCD`.
+
+**CSP:** `connect-src` allows `'self'` plus `https://0.peerjs.com` and `wss://0.peerjs.com` for the broker. MediaPipe telemetry remains blocked.
+
 
 ### Model and WASM assets (offline)
 
@@ -118,6 +142,8 @@ src/
   main.ts                bootstrap + YAML HMR wiring
   app.ts                 orchestrator: adapters -> core -> render
   core/                  framework-free, unit-tested logic (no MediaPipe, no DOM)
+    roomCode.ts          room codes, ?role=&room= parsing, PeerJS host id
+    roomProtocol.ts      wire messages, landmark pack/unpack, parse/validate
     landmarks.ts         unified landmark model (33 joints, virtual points, connections)
     geometry.ts          joint angles, torso tilt, head pitch, scale references
     poseRules.ts         rule DSL types + evaluator (pass / fail / unknown)
@@ -134,6 +160,9 @@ src/
     mediapipePose.ts     the ONLY MediaPipe import; converts to unified PoseFrame
     camera.ts            getUserMedia (front/back, 1280x720 ideal)
     wakeLock.ts          Screen Wake Lock with re-acquire on tab return
+    peerRoom.ts          PeerJS room transport (camera host / viewer dial)
+  sync/
+    roomBridge.ts        send-rate throttling + protocol handlers for App
   audio/
     audioBank.ts         AudioBank: register cues, play / loop / stop, mute, volume, cooldowns (pure, tested)
     webAudioBackend.ts   Web Audio output (master + ambience/sfx buses, gapless loops)
@@ -144,7 +173,7 @@ src/
     sphereAI.ts          the sphere "Dom": moods, rings, halo progress shader, scan beam
     capsuleFigure.ts     33-joint translucent capsule figure from world landmarks
     skeleton2d.ts        visibility-coloured 2D overlay
-    hud.ts, debugPanel.ts, audioToggle.ts, dom.ts, colors.ts
+    hud.ts, debugPanel.ts, audioToggle.ts, lobby.ts, dom.ts, colors.ts
   content/
     poses.yaml           7 poses: id + rules only
     i18n/zh-CN.yaml      all copy (Chinese)
@@ -258,8 +287,8 @@ Codes:
 
 ## Findings from the spike
 
-* `@mediapipe/tasks-vision` 1.0.1 **always tries to send usage telemetry** to `https://odml.pa.googleapis.com/v1/log`, and there is no option to turn it off. The CSP in `index.html` (`connect-src 'self' …`) blocks it before it leaves the browser. You'll see a CSP error in the console. That error is expected and is the proof that nothing goes off-device. Keep the CSP if you build on this.
-* Everything else loads same-origin. A headless Chrome run with a fake camera recorded **zero** off-origin requests: models and WASM came from `public/`, and the GPU delegate ran via WebGL. Under software GL (SwiftShader) the `full` model ran at about 400 ms per frame; real GPUs and phones are far faster.
+* `@mediapipe/tasks-vision` 1.0.1 **always tries to send usage telemetry** to `https://odml.pa.googleapis.com/v1/log`, and there is no option to turn it off. The CSP in `index.html` blocks it (only `'self'` and the PeerJS broker host are allowed in `connect-src`). You'll see a CSP error in the console for the telemetry URL — expected.
+* Models, WASM, and audio load same-origin. Room mode additionally contacts `0.peerjs.com` for signaling. A headless Chrome run with a fake camera recorded **zero** off-origin requests: models and WASM came from `public/`, and the GPU delegate ran via WebGL. Under software GL (SwiftShader) the `full` model ran at about 400 ms per frame; real GPUs and phones are far faster.
 * `'wasm-unsafe-eval'` is enough. `'unsafe-eval'` is not needed.
 
 ## Safety and consent

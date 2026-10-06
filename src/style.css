@@ -601,3 +601,118 @@ body.safeword .safeword-btn {
   border-bottom: 1px solid var(--line);
   margin-bottom: 2px;
 }
+
+/* ---------------------------------------------------------------- lobby / room */
+.badge.room {
+  color: var(--accent);
+  border-color: rgba(159, 220, 255, 0.45);
+  text-transform: uppercase;
+}
+.badge.room[data-role='camera'] {
+  color: var(--ok);
+}
+.badge.room[data-role='viewer'] {
+  color: #c9b6ff;
+  border-color: rgba(201, 182, 255, 0.45);
+}
+
+.lobby {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.lobby-note {
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+.lobby-sep {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+.lobby-join {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(7, 11, 20, 0.6);
+}
+.lobby-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.lobby-field input {
+  font-family: var(--mono);
+  font-size: 20px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0b1220;
+  color: var(--fg);
+}
+.lobby-roles {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.lobby-roles legend {
+  padding: 0;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+.lobby-roles label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--fg);
+}
+.room-status {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  min-height: 1.4em;
+}
+.room-status[data-kind='ok'] {
+  color: var(--ok);
+}
+.room-status[data-kind='warn'] {
+  color: #ffe08a;
+}
+.room-status[data-kind='err'] {
+  color: var(--bad);
+}
+
+.viewer-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  background: rgba(4, 5, 10, 0.55);
+  pointer-events: none;
+}

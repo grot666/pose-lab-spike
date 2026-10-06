@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Local-only MediaPipe Pose Landmarker spike: in-browser realtime pose detection, judging, visualization and measurement.",
+  "description": "MediaPipe Pose Landmarker spike: local single-device or PeerJS room-code multi-device (camera phone + viewer desktop).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",
+    "peerjs": "1.5.5",
     "three": "0.186.1"
   },
   "devDependencies": {
