@@ -748,3 +748,25 @@ body[data-mode="face"] #face-entry.hidden {
   align-items: center;
   justify-content: center;
 }
+
+/* Face mode: always-on detector debug strip (not the pose debug panel). */
+.face-debug {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 5;
+  padding: 6px 8px;
+  border: 1px solid rgba(120, 220, 255, 0.35);
+  background: rgba(4, 10, 18, 0.82);
+  color: #b7e6ff;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+body[data-mode="face"] .face-debug.hidden {
+  display: none;
+}

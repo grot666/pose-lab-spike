@@ -258,6 +258,7 @@ face:
   loading_model: "Loading face model…"
   model_failed: "Face model failed to load: {error}"
   no_face: "No face in frame. Face the camera and move closer."
+  debug_hud: "faces:{faces} presence:{presence} err:{error} {meta}"
   detect_error: "Face detector error: {error}"
   status:
     idle:

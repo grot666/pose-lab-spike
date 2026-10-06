@@ -9,6 +9,7 @@
 import { FilesetResolver, PoseLandmarker, type PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 import type { ModelTier } from '../config';
 import { assetUrl, wasmAssetDir } from '../core/assetUrl';
+import { nextVideoTimestampMs } from '../core/videoTimestamp';
 import type { Landmark, PoseFrame } from '../core/landmarks';
 
 export interface PoseDetectorOptions {
@@ -84,11 +85,18 @@ export class MediaPipePoseDetector implements PoseDetector {
 
   detect(video: HTMLVideoElement, timestampMs: number): PoseFrame | null {
     if (!this.landmarker || video.readyState < 2) return null;
-    // VIDEO mode requires strictly increasing timestamps
-    const ts = timestampMs <= this.lastTs ? this.lastTs + 1 : timestampMs;
+    // 0×0 frames can wedge the MediaPipe graph — skip until dimensions exist.
+    if (video.videoWidth < 1 || video.videoHeight < 1) return null;
+    // VIDEO mode requires strictly increasing integer timestamps
+    const ts = nextVideoTimestampMs(timestampMs, this.lastTs);
     this.lastTs = ts;
-    const result = this.landmarker.detectForVideo(video, ts);
-    return toUnifiedFrame(result, timestampMs);
+    try {
+      const result = this.landmarker.detectForVideo(video, ts);
+      return toUnifiedFrame(result, timestampMs);
+    } catch (err) {
+      console.error('[pose] detectForVideo failed', err);
+      return null;
+    }
   }
 
   close(): void {

@@ -118,11 +118,13 @@ export const config: AppConfig = {
   },
   face: {
     modelPath: 'models/face_landmarker.task',
-    preferGpu: true,
-    // Slightly looser than pose defaults so webcam faces lock more reliably on Pages.
-    minFaceDetectionConfidence: 0.4,
-    minFacePresenceConfidence: 0.4,
-    minTrackingConfidence: 0.4,
+    // CPU default: Face Landmarker GPU + three.js WebGL on the same page can
+    // starve/empty-infer on some devices; create-time GPU→CPU fallback remains.
+    preferGpu: false,
+    // Loose gates — webcam framing often yields marginal presence scores.
+    minFaceDetectionConfidence: 0.3,
+    minFacePresenceConfidence: 0.3,
+    minTrackingConfidence: 0.3,
     numFaces: 1,
   },
   filter: { minCutoff: 1.2, beta: 0.05, dCutoff: 1.0 },

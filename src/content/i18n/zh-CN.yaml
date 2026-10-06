@@ -258,6 +258,7 @@ face:
   loading_model: "正在载入面部模型…"
   model_failed: "面部模型载入失败：{error}"
   no_face: "画面中没有脸。请面向摄像头并靠近一些。"
+  debug_hud: "脸:{faces} 存在:{presence} 错误:{error} {meta}"
   detect_error: "面部检测出错：{error}"
   status:
     idle:
